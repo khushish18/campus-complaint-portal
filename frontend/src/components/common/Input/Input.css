@@ -1,0 +1,78 @@
+.input-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+.input-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  text-align: left;
+}
+
+.input-required-star {
+  color: var(--danger);
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
+.input-field:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.input-field:disabled {
+  background-color: var(--bg-secondary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* Textarea specific */
+.input-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Select specific */
+.input-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+/* Error States */
+.input-has-error .input-field {
+  border-color: var(--danger);
+}
+
+.input-has-error .input-field:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.input-error-msg {
+  font-size: 0.75rem;
+  color: var(--danger);
+  margin-top: 0.35rem;
+  text-align: left;
+}

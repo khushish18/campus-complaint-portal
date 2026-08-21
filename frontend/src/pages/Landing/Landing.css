@@ -1,0 +1,112 @@
+.landing-page-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 45%),
+              radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+              var(--bg-primary);
+  padding: 1.5rem;
+}
+
+.landing-card-wrapper {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.landing-brand-header {
+  text-align: center;
+}
+
+.landing-brand-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.logo-icon-accent {
+  color: var(--primary);
+}
+
+.landing-brand-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+}
+
+.landing-brand-tagline {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.landing-form-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 2.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-form-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+/* Demo Role Selection Panel Styling */
+.landing-demo-panel {
+  background-color: var(--bg-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.demo-panel-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.85rem;
+}
+
+.demo-btn-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.demo-role-btn {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+}
+
+.demo-role-btn:hover {
+  background-color: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.demo-role-btn:active {
+  transform: scale(0.97);
+}

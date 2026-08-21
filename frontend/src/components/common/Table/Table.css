@@ -1,0 +1,77 @@
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.custom-table th {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 700;
+  padding: 1rem 1.25rem;
+  border-bottom: 2px solid var(--border-color);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.custom-table td {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.custom-table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+.custom-table tbody tr:hover {
+  background-color: var(--bg-secondary);
+}
+
+.custom-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Loading & Empty States */
+.table-loading-cell,
+.table-empty-cell {
+  text-align: center !important;
+  padding: 3rem 1.5rem !important;
+  color: var(--text-muted) !important;
+}
+
+.table-loading-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.table-loader {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--bg-secondary);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: table-spin 0.8s linear infinite;
+}
+
+@keyframes table-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

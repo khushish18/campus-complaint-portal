@@ -1,0 +1,156 @@
+.navbar {
+  height: var(--navbar-height);
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.navbar-mobile-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  display: none; /* Hidden on desktop */
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar-mobile-toggle:hover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.navbar-brand {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.brand-accent {
+  color: var(--primary);
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.navbar-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.navbar-action-btn:hover {
+  color: var(--primary);
+  background-color: var(--bg-secondary);
+}
+
+.notification-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background-color: var(--danger);
+  color: var(--text-light);
+  font-size: 0.65rem;
+  font-weight: 700;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px var(--bg-card);
+}
+
+.navbar-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 1rem;
+  border-left: 1px solid var(--border-color);
+}
+
+.user-avatar {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.user-role-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.navbar-logout-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.navbar-logout-btn:hover {
+  color: var(--danger);
+  background-color: var(--danger-light);
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+  .navbar-mobile-toggle {
+    display: flex;
+  }
+  
+  .user-info {
+    display: none; /* Hide name/role on small mobile screens */
+  }
+}
