@@ -4,15 +4,26 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import Button from '../../components/common/Button/Button';
 import Input from '../../components/common/Input/Input';
-import { ShieldCheck, Mail, Lock } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import './Landing.css';
 
 const Landing = () => {
+  const [isLogin, setIsLogin] = useState(true);
+  
+  // Login Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Register Form States
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regRoomNo, setRegRoomNo] = useState('');
+  const [regHostelBlock, setRegHostelBlock] = useState('');
+
   const [loading, setLoading] = useState(false);
   
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -34,6 +45,28 @@ const Landing = () => {
     }
   };
 
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    if (!regName || !regEmail || !regPassword) {
+      return toast.error('Please enter name, email, and password.');
+    }
+
+    if (regPassword.length < 6) {
+      return toast.error('Password must be at least 6 characters.');
+    }
+
+    setLoading(true);
+    try {
+      const loggedUser = await register(regName, regEmail, regPassword, regRoomNo, regHostelBlock);
+      toast.success(`Registration successful! Welcome, ${loggedUser.name}`);
+      redirectUser(loggedUser.role);
+    } catch (error) {
+      toast.error(error.message || 'Registration failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleQuickLogin = async (role) => {
     setLoading(true);
     try {
@@ -41,7 +74,7 @@ const Landing = () => {
       toast.success(`Logged in as ${loggedUser.name} [${role.toUpperCase()}]`);
       redirectUser(loggedUser.role);
     } catch (error) {
-      toast.error('Quick login failed.');
+      toast.error(error.message || 'Quick login failed.');
     } finally {
       setLoading(false);
     }
@@ -76,54 +109,136 @@ const Landing = () => {
           <p className="landing-brand-tagline">Hostel Complaint Management Portal</p>
         </div>
 
-        <form onSubmit={handleLoginSubmit} className="landing-form-card">
-          <h2 className="landing-form-title">Account Login</h2>
-          
-          <Input
-            label="Campus Email Address"
-            type="email"
-            name="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="e.g. student@campus.edu"
-            required
-          />
+        {isLogin ? (
+          /* Login Mode Form */
+          <form onSubmit={handleLoginSubmit} className="landing-form-card">
+            <h2 className="landing-form-title">Account Login</h2>
+            
+            <Input
+              label="Campus Email Address"
+              type="email"
+              name="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. student@campus.edu"
+              required
+            />
 
-          <Input
-            label="Security Password"
-            type="password"
-            name="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-          />
+            <Input
+              label="Security Password"
+              type="password"
+              name="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
 
-          <Button
-            type="submit"
-            variant="primary"
-            className="w-full"
-            loading={loading}
-            style={{ marginTop: '0.5rem' }}
-          >
-            Access Dashboard
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+              loading={loading}
+              style={{ marginTop: '0.5rem' }}
+            >
+              Access Dashboard
+            </Button>
+
+            <div className="form-toggle-link">
+              Don't have an account?{' '}
+              <button type="button" onClick={() => setIsLogin(false)} disabled={loading}>
+                Register as Student
+              </button>
+            </div>
+          </form>
+        ) : (
+          /* Student Registration Mode Form */
+          <form onSubmit={handleRegisterSubmit} className="landing-form-card">
+            <h2 className="landing-form-title">Student Registration</h2>
+            
+            <Input
+              label="Full Name"
+              type="text"
+              name="regName"
+              value={regName}
+              onChange={(e) => setRegName(e.target.value)}
+              placeholder="e.g. Khushi Sharma"
+              required
+            />
+
+            <Input
+              label="Campus Email Address"
+              type="email"
+              name="regEmail"
+              value={regEmail}
+              onChange={(e) => setRegEmail(e.target.value)}
+              placeholder="e.g. student@campus.edu"
+              required
+            />
+
+            <Input
+              label="Password (min 6 characters)"
+              type="password"
+              name="regPassword"
+              value={regPassword}
+              onChange={(e) => setRegPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
+
+            <div className="form-grid-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <Input
+                label="Hostel Block"
+                type="text"
+                name="regHostelBlock"
+                value={regHostelBlock}
+                onChange={(e) => setRegHostelBlock(e.target.value)}
+                placeholder="e.g. Tagore Hall"
+              />
+
+              <Input
+                label="Room Number"
+                type="text"
+                name="regRoomNo"
+                value={regRoomNo}
+                onChange={(e) => setRegRoomNo(e.target.value)}
+                placeholder="e.g. B-204"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+              loading={loading}
+              style={{ marginTop: '0.5rem' }}
+            >
+              Create Student Account
+            </Button>
+
+            <div className="form-toggle-link">
+              Already have an account?{' '}
+              <button type="button" onClick={() => setIsLogin(true)} disabled={loading}>
+                Access Login
+              </button>
+            </div>
+          </form>
+        )}
 
         {/* Demo switcher panel */}
         <div className="landing-demo-panel">
           <p className="demo-panel-title">Developer Preview - Quick Selection</p>
           <div className="demo-btn-grid">
-            <button className="demo-role-btn student" onClick={() => handleQuickLogin('student')}>
+            <button className="demo-role-btn student" onClick={() => handleQuickLogin('student')} disabled={loading}>
               Student View
             </button>
-            <button className="demo-role-btn warden" onClick={() => handleQuickLogin('warden')}>
+            <button className="demo-role-btn warden" onClick={() => handleQuickLogin('warden')} disabled={loading}>
               Warden View
             </button>
-            <button className="demo-role-btn staff" onClick={() => handleQuickLogin('staff')}>
+            <button className="demo-role-btn staff" onClick={() => handleQuickLogin('staff')} disabled={loading}>
               Staff View
             </button>
-            <button className="demo-role-btn admin" onClick={() => handleQuickLogin('admin')}>
+            <button className="demo-role-btn admin" onClick={() => handleQuickLogin('admin')} disabled={loading}>
               Admin View
             </button>
           </div>

@@ -110,3 +110,33 @@
 .demo-role-btn:active {
   transform: scale(0.97);
 }
+
+.form-toggle-link {
+  text-align: center;
+  margin-top: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.form-toggle-link button {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-weight: 700;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.25rem;
+  transition: color var(--transition-fast);
+}
+
+.form-toggle-link button:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+.form-toggle-link button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

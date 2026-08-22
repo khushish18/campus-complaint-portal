@@ -1,64 +1,104 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import Card from '../../components/common/Card/Card';
 import Button from '../../components/common/Button/Button';
 import Badge from '../../components/common/Badge/Badge';
 import Table from '../../components/common/Table/Table';
+import Modal from '../../components/common/Modal/Modal';
+import Input from '../../components/common/Input/Input';
+import api from '../../services/api';
 import { 
   Wrench,
   Activity,
   CheckCircle,
   Play,
-  Check
+  Check,
+  Eye,
+  MessageSquare
 } from 'lucide-react';
-
-const INITIAL_JOBS = [
-  {
-    _id: 'c-001',
-    title: 'Water Leakage in Bathroom Tap',
-    student: { name: 'Khushi Sharma', hostel: 'Tagore Hall', roomNumber: 'B-204' },
-    category: 'plumbing',
-    urgency: 'high',
-    status: 'assigned',
-    createdAt: '2026-08-20T10:30:00Z',
-  },
-  {
-    _id: 'c-003',
-    title: 'WiFi Connection Dropping Constantly',
-    student: { name: 'Preeti Negi', hostel: 'Tagore Hall', roomNumber: 'A-108' },
-    category: 'internet',
-    urgency: 'medium',
-    status: 'in-progress',
-    createdAt: '2026-08-21T09:00:00Z',
-  }
-];
 
 const StaffDashboard = () => {
   const { user } = useAuth();
   const toast = useToast();
   
-  const [jobs, setJobs] = useState(INITIAL_JOBS);
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+
+  // Status Action Modal State
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [actionJobId, setActionJobId] = useState(null);
+  const [actionStatus, setActionStatus] = useState('');
+  const [actionRemarks, setActionRemarks] = useState('');
+  const [submittingAction, setSubmittingAction] = useState(false);
+
+  // Detail Modal State
+  const [detailComplaint, setDetailComplaint] = useState(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const fetchJobs = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/complaints');
+      setJobs(response.complaints || []);
+    } catch (err) {
+      toast.error(err.message || 'Failed to fetch assigned jobs.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs();
+  }, []);
 
   // Statistics
   const totalJobs = jobs.length;
   const activeJobs = jobs.filter(j => j.status === 'in-progress' || j.status === 'assigned').length;
-  const resolvedJobs = jobs.filter(j => j.status === 'resolved').length;
+  const resolvedJobs = jobs.filter(j => j.status === 'resolved' || j.status === 'closed').length;
 
-  const handleUpdateStatus = async (jobId, newStatus) => {
-    setUpdatingId(jobId);
-    await new Promise((resolve) => setTimeout(resolve, 800)); // Network delay
+  const handleOpenActionModal = (jobId, status) => {
+    setActionJobId(jobId);
+    setActionStatus(status);
+    setActionRemarks('');
+    setIsActionModalOpen(true);
+  };
 
-    setJobs(prev => prev.map(j => {
-      if (j._id === jobId) {
-        return { ...j, status: newStatus };
+  const handleUpdateStatusSubmit = async (e) => {
+    e.preventDefault();
+    setSubmittingAction(true);
+    try {
+      const response = await api.patch(`/complaints/${actionJobId}/status`, {
+        status: actionStatus,
+        remarks: actionRemarks
+      });
+      if (response.success) {
+        toast.success(`Job status updated to [${actionStatus.toUpperCase()}] successfully!`);
+        setIsActionModalOpen(false);
+        await fetchJobs();
       }
-      return j;
-    }));
+    } catch (err) {
+      toast.error(err.message || 'Failed to update job status.');
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
-    toast.success(`Job status updated to [${newStatus.toUpperCase()}] successfully!`);
-    setUpdatingId(null);
+  const handleOpenDetailModal = async (complaintId) => {
+    setIsDetailModalOpen(true);
+    setLoadingDetail(true);
+    setDetailComplaint(null);
+    try {
+      const response = await api.get(`/complaints/${complaintId}`);
+      setDetailComplaint(response.complaint);
+    } catch (err) {
+      toast.error(err.message || 'Failed to load complaint details.');
+      setIsDetailModalOpen(false);
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
   const columns = [
@@ -68,14 +108,16 @@ const StaffDashboard = () => {
       render: (row) => (
         <div>
           <span style={{ fontWeight: 600, display: 'block', color: 'var(--text-primary)' }}>{row.title}</span>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Location: {row.student.hostel} (Room {row.student.roomNumber})</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Location: {row.student?.hostelBlock || 'N/A'} (Room {row.student?.roomNo || 'N/A'})
+          </span>
         </div>
       )
     },
     {
       header: 'Student Contact',
       key: 'student',
-      render: (row) => <span style={{ fontSize: '0.9rem' }}>{row.student.name}</span>
+      render: (row) => <span style={{ fontSize: '0.9rem' }}>{row.student?.name || 'N/A'}</span>
     },
     {
       header: 'Urgency',
@@ -88,41 +130,39 @@ const StaffDashboard = () => {
       render: (row) => <Badge status={row.status}>{row.status}</Badge>
     },
     {
-      header: 'Lifecycle Actions',
+      header: 'Actions',
       key: 'action',
       render: (row) => {
-        const isLoading = updatingId === row._id;
-
-        if (row.status === 'assigned') {
-          return (
-            <Button
-              variant="outline"
-              size="sm"
-              icon={Play}
-              loading={isLoading}
-              onClick={() => handleUpdateStatus(row._id, 'in-progress')}
-            >
-              Start Work
+        return (
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Button variant="outline" size="sm" icon={Eye} onClick={() => handleOpenDetailModal(row._id)}>
+              View
             </Button>
-          );
-        }
+            
+            {row.status === 'assigned' && (
+              <Button
+                variant="outline"
+                size="sm"
+                icon={Play}
+                onClick={() => handleOpenActionModal(row._id, 'in-progress')}
+              >
+                Start Work
+              </Button>
+            )}
 
-        if (row.status === 'in-progress') {
-          return (
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Check}
-              loading={isLoading}
-              style={{ backgroundColor: 'var(--success)', borderColor: 'var(--success)' }}
-              onClick={() => handleUpdateStatus(row._id, 'resolved')}
-            >
-              Resolve Job
-            </Button>
-          );
-        }
-
-        return <span style={{ color: 'var(--success)', fontWeight: 700, fontSize: '0.85rem' }}>Job Resolved</span>;
+            {row.status === 'in-progress' && (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Check}
+                style={{ backgroundColor: 'var(--success)', borderColor: 'var(--success)' }}
+                onClick={() => handleOpenActionModal(row._id, 'resolved')}
+              >
+                Resolve Job
+              </Button>
+            )}
+          </div>
+        );
       }
     }
   ];
@@ -194,12 +234,150 @@ const StaffDashboard = () => {
 
       {/* Jobs Table */}
       <Card title="Active Work Orders Allocation">
-        <Table
-          columns={columns}
-          data={jobs}
-          emptyMessage="You have no assigned jobs in the queue."
-        />
+        {loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading task sheet...</div>
+        ) : (
+          <Table
+            columns={columns}
+            data={jobs}
+            emptyMessage="You have no assigned jobs in the queue."
+          />
+        )}
       </Card>
+
+      {/* Action remark Modal */}
+      <Modal
+        isOpen={isActionModalOpen}
+        onClose={() => !submittingAction && setIsActionModalOpen(false)}
+        title={actionStatus === 'in-progress' ? 'Start Work Order' : 'Resolve Work Order'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsActionModalOpen(false)} disabled={submittingAction}>Cancel</Button>
+            <Button 
+              variant="primary" 
+              onClick={handleUpdateStatusSubmit} 
+              loading={submittingAction} 
+              disabled={submittingAction}
+              style={actionStatus === 'resolved' ? { backgroundColor: 'var(--success)', borderColor: 'var(--success)' } : {}}
+            >
+              Confirm Update
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleUpdateStatusSubmit} style={{ textAlign: 'left' }}>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Updating ticket to status: <strong style={{ color: actionStatus === 'resolved' ? 'var(--success)' : 'var(--primary)' }}>{actionStatus.toUpperCase()}</strong>
+          </p>
+          
+          <Input
+            label="Remarks / Comments"
+            type="textarea"
+            name="remarks"
+            value={actionRemarks}
+            onChange={(e) => setActionRemarks(e.target.value)}
+            placeholder="Add comments on status change (e.g. Parts acquired, repairs done...)"
+            required={actionStatus === 'resolved'} // Required for resolution
+            disabled={submittingAction}
+          />
+        </form>
+      </Modal>
+
+      {/* Detail Modal */}
+      <Modal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        title="Job Order Details"
+      >
+        {loadingDetail && (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading details...</div>
+        )}
+
+        {!loadingDetail && detailComplaint && (
+          <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                {detailComplaint.title}
+              </h3>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ticket ID: {detailComplaint._id}</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <Badge status={detailComplaint.status}>{detailComplaint.status}</Badge>
+              <Badge status={detailComplaint.urgency}>{detailComplaint.urgency} Priority</Badge>
+              <Badge status="other">{detailComplaint.category}</Badge>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: '0.75rem 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Student Raiser</span>
+                <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  {detailComplaint.student?.name || 'N/A'}
+                </strong>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block' }}>
+                  Room {detailComplaint.student?.roomNo} | {detailComplaint.student?.hostelBlock}
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Date created</span>
+                <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  {new Date(detailComplaint.createdAt).toLocaleDateString()}
+                </strong>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block' }}>
+                  {new Date(detailComplaint.createdAt).toLocaleTimeString()}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Description</h5>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.4, backgroundColor: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+                {detailComplaint.description}
+              </p>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+              <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Update History Log</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {detailComplaint.history && detailComplaint.history.map((h, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.85rem' }}>
+                    <div style={{ minWidth: '80px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', flex: 1 }}>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Status: <span style={{ textTransform: 'capitalize' }}>{h.status}</span>
+                      </span>
+                      {h.remarks && <span style={{ color: 'var(--text-secondary)' }}>{h.remarks}</span>}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        By {h.updatedBy?.name} ({h.updatedBy?.role})
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {detailComplaint.status === 'closed' && (
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', backgroundColor: 'var(--success-light)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+                <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--success)', marginBottom: '0.25rem' }}>
+                  Student Feedback rating
+                </h5>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.4rem' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span key={star} style={{ color: star <= detailComplaint.feedbackRating ? 'var(--warning)' : 'var(--text-muted)' }}>★</span>
+                  ))}
+                </div>
+                {detailComplaint.feedbackComment && (
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontStyle: 'italic', margin: 0 }}>
+                    "{detailComplaint.feedbackComment}"
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
     </div>
   );

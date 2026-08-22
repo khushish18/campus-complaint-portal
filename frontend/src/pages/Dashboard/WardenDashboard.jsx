@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import Card from '../../components/common/Card/Card';
@@ -7,63 +7,66 @@ import Badge from '../../components/common/Badge/Badge';
 import Table from '../../components/common/Table/Table';
 import Modal from '../../components/common/Modal/Modal';
 import Input from '../../components/common/Input/Input';
+import api from '../../services/api';
 import { 
   ClipboardList, 
   Clock, 
   UserCheck, 
   UserX,
   Send,
-  Building
+  Building,
+  Eye
 } from 'lucide-react';
-
-const INITIAL_COMPLAINTS = [
-  {
-    _id: 'c-001',
-    title: 'Water Leakage in Bathroom Tap',
-    student: { name: 'Khushi Sharma', roomNumber: 'B-204' },
-    category: 'plumbing',
-    urgency: 'high',
-    status: 'pending',
-    createdAt: '2026-08-20T10:30:00Z',
-    assignedTo: null
-  },
-  {
-    _id: 'c-002',
-    title: 'Ceiling Fan Speed Regulator Broken',
-    student: { name: 'Aryan Goel', roomNumber: 'C-312' },
-    category: 'electrical',
-    urgency: 'low',
-    status: 'assigned',
-    createdAt: '2026-08-18T14:15:00Z',
-    assignedTo: { name: 'Sohan Lal (Electrician)' }
-  },
-  {
-    _id: 'c-003',
-    title: 'WiFi Connection Dropping Constantly',
-    student: { name: 'Preeti Negi', roomNumber: 'A-108' },
-    category: 'internet',
-    urgency: 'medium',
-    status: 'in-progress',
-    createdAt: '2026-08-21T09:00:00Z',
-    assignedTo: { name: 'Ramesh Kumar (Plumber)' }
-  }
-];
-
-const MOCK_STAFF = [
-  { value: 'staff-1', label: 'Ramesh Kumar (Plumbing Dept)' },
-  { value: 'staff-2', label: 'Sohan Lal (Electrician)' },
-  { value: 'staff-3', label: 'Mohammad Ali (Housekeeping Supervisor)' },
-];
 
 const WardenDashboard = () => {
   const { user } = useAuth();
   const toast = useToast();
   
-  const [complaints, setComplaints] = useState(INITIAL_COMPLAINTS);
+  const [complaints, setComplaints] = useState([]);
+  const [staffList, setStaffList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Assign Modal State
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [staffId, setStaffId] = useState('');
+  const [assignRemarks, setAssignRemarks] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dispatching, setDispatching] = useState(false);
+
+  // Detail Modal State
+  const [detailComplaint, setDetailComplaint] = useState(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const fetchComplaints = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/complaints');
+      setComplaints(response.complaints || []);
+    } catch (err) {
+      toast.error(err.message || 'Failed to fetch complaints.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStaff = async () => {
+    try {
+      const response = await api.get('/users/staff');
+      const formatted = (response.staff || []).map(s => ({
+        value: s._id,
+        label: `${s.name} (${s.email})`
+      }));
+      setStaffList(formatted);
+    } catch (err) {
+      toast.error(err.message || 'Failed to fetch maintenance staff list.');
+    }
+  };
+
+  useEffect(() => {
+    fetchComplaints();
+    fetchStaff();
+  }, []);
 
   // Statistics
   const totalHostelComplaints = complaints.length;
@@ -73,6 +76,7 @@ const WardenDashboard = () => {
   const handleOpenAssignModal = (complaint) => {
     setSelectedComplaint(complaint);
     setStaffId('');
+    setAssignRemarks('');
     setIsModalOpen(true);
   };
 
@@ -83,24 +87,36 @@ const WardenDashboard = () => {
     }
 
     setDispatching(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // Network delay
-
-    const selectedStaffName = MOCK_STAFF.find(s => s.value === staffId)?.label || 'Assigned Crew';
-
-    setComplaints(prev => prev.map(c => {
-      if (c._id === selectedComplaint._id) {
-        return {
-          ...c,
-          status: 'assigned',
-          assignedTo: { name: selectedStaffName }
-        };
+    try {
+      const response = await api.patch(`/complaints/${selectedComplaint._id}/assign`, {
+        staffId,
+        remarks: assignRemarks
+      });
+      if (response.success) {
+        toast.success(`Complaint assigned successfully!`);
+        setIsModalOpen(false);
+        await fetchComplaints();
       }
-      return c;
-    }));
+    } catch (err) {
+      toast.error(err.message || 'Failed to assign staff member.');
+    } finally {
+      setDispatching(false);
+    }
+  };
 
-    toast.success(`Complaint ${selectedComplaint._id} assigned to ${selectedStaffName}!`);
-    setDispatching(false);
-    setIsModalOpen(false);
+  const handleOpenDetailModal = async (complaintId) => {
+    setIsDetailModalOpen(true);
+    setLoadingDetail(true);
+    setDetailComplaint(null);
+    try {
+      const response = await api.get(`/complaints/${complaintId}`);
+      setDetailComplaint(response.complaint);
+    } catch (err) {
+      toast.error(err.message || 'Failed to load complaint details.');
+      setIsDetailModalOpen(false);
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
   const columns = [
@@ -110,7 +126,9 @@ const WardenDashboard = () => {
       render: (row) => (
         <div>
           <span style={{ fontWeight: 600, display: 'block', color: 'var(--text-primary)' }}>{row.title}</span>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Student: {row.student.name} (Room {row.student.roomNumber})</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Student: {row.student?.name || 'Unknown'} (Room {row.student?.roomNo || 'N/A'})
+          </span>
         </div>
       )
     },
@@ -139,18 +157,20 @@ const WardenDashboard = () => {
       )
     },
     {
-      header: 'Dispatch Action',
+      header: 'Actions',
       key: 'action',
-      render: (row) => {
-        if (row.status === 'pending') {
-          return (
-            <Button variant="outline" size="sm" icon={Send} onClick={() => handleOpenAssignModal(row)}>
+      render: (row) => (
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <Button variant="outline" size="sm" icon={Eye} onClick={() => handleOpenDetailModal(row._id)}>
+            View
+          </Button>
+          {row.status === 'pending' && (
+            <Button variant="primary" size="sm" icon={Send} onClick={() => handleOpenAssignModal(row)}>
               Assign
             </Button>
-          );
-        }
-        return <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Dispatched</span>;
-      }
+          )}
+        </div>
+      )
     }
   ];
 
@@ -177,7 +197,9 @@ const WardenDashboard = () => {
           </div>
           <div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Warden Dashboard</h2>
-            <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Hostel Wing Supervision: <strong style={{ color: 'var(--primary)' }}>{user?.hostel}</strong></p>
+            <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>
+              Hostel Wing Supervision: <strong style={{ color: 'var(--primary)' }}>{user?.hostelBlock || 'N/A'}</strong>
+            </p>
           </div>
         </div>
       </div>
@@ -221,22 +243,26 @@ const WardenDashboard = () => {
 
       {/* Main Table section */}
       <Card title="Hostel Complaints Dispatch Registry">
-        <Table
-          columns={columns}
-          data={complaints}
-          emptyMessage="No complaints have been reported in your hostel wing."
-        />
+        {loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading complaints...</div>
+        ) : (
+          <Table
+            columns={columns}
+            data={complaints}
+            emptyMessage="No complaints have been reported in your hostel wing."
+          />
+        )}
       </Card>
 
       {/* Staff Assignment Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => !dispatching && setIsModalOpen(false)}
         title="Dispatch Maintenance Crew"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={handleAssignSubmit} loading={dispatching} icon={UserCheck}>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)} disabled={dispatching}>Cancel</Button>
+            <Button variant="primary" onClick={handleAssignSubmit} loading={dispatching} disabled={dispatching} icon={UserCheck}>
               Confirm Dispatch
             </Button>
           </>
@@ -254,11 +280,121 @@ const WardenDashboard = () => {
             value={staffId}
             onChange={(e) => setStaffId(e.target.value)}
             placeholder="Choose available staff..."
-            options={MOCK_STAFF}
+            options={staffList}
             required
             disabled={dispatching}
           />
+
+          <Input
+            label="Dispatch Instructions / Remarks"
+            type="textarea"
+            name="remarks"
+            value={assignRemarks}
+            onChange={(e) => setAssignRemarks(e.target.value)}
+            placeholder="Provide any instructions or comments for the maintenance crew..."
+            disabled={dispatching}
+          />
         </form>
+      </Modal>
+
+      {/* Detail Modal */}
+      <Modal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        title="Complaint Details Overview"
+      >
+        {loadingDetail && (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading details...</div>
+        )}
+
+        {!loadingDetail && detailComplaint && (
+          <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                {detailComplaint.title}
+              </h3>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ticket ID: {detailComplaint._id}</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <Badge status={detailComplaint.status}>{detailComplaint.status}</Badge>
+              <Badge status={detailComplaint.urgency}>{detailComplaint.urgency} Priority</Badge>
+              <Badge status="other">{detailComplaint.category}</Badge>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: '0.75rem 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Student Raiser</span>
+                <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  {detailComplaint.student?.name || 'N/A'}
+                </strong>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block' }}>
+                  {detailComplaint.student?.email}
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Location Details</span>
+                <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  Room: {detailComplaint.student?.roomNo || 'N/A'}
+                </strong>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block' }}>
+                  Hostel: {detailComplaint.student?.hostelBlock}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Description</h5>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.4, backgroundColor: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+                {detailComplaint.description}
+              </p>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+              <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Update History Log</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {detailComplaint.history && detailComplaint.history.map((h, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.85rem' }}>
+                    <div style={{ minWidth: '80px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', flex: 1 }}>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Status: <span style={{ textTransform: 'capitalize' }}>{h.status}</span>
+                      </span>
+                      {h.remarks && <span style={{ color: 'var(--text-secondary)' }}>{h.remarks}</span>}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        By {h.updatedBy?.name} ({h.updatedBy?.role})
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Closed Ticket Feedback */}
+            {detailComplaint.status === 'closed' && (
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', backgroundColor: 'var(--success-light)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+                <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--success)', marginBottom: '0.25rem' }}>
+                  Student Resolution Feedback
+                </h5>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.4rem' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span key={star} style={{ color: star <= detailComplaint.feedbackRating ? 'var(--warning)' : 'var(--text-muted)' }}>★</span>
+                  ))}
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
+                    Rating: {detailComplaint.feedbackRating}/5
+                  </span>
+                </div>
+                {detailComplaint.feedbackComment && (
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontStyle: 'italic', margin: 0 }}>
+                    "{detailComplaint.feedbackComment}"
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
     </div>

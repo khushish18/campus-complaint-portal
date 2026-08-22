@@ -68,13 +68,10 @@ exports.getComplaints = async (req, res, next) => {
       query.assignedTo = req.user._id;
     } else if (req.user.role === 'warden') {
       // Wardens typically review complaints from their hostel or all complaints
-      if (req.user.hostel) {
+      if (req.user.hostelBlock) {
         // Find students in warden's hostel
-        const studentIds = await User.find({ hostel: req.user.hostel }).select('_id');
-        query.$or = [
-          { student: { $in: studentIds } },
-          { hostel: req.user.hostel } // or general tags
-        ];
+        const studentIds = await User.find({ hostelBlock: req.user.hostelBlock }).select('_id');
+        query.student = { $in: studentIds.map(s => s._id) };
       }
     }
 
@@ -90,8 +87,8 @@ exports.getComplaints = async (req, res, next) => {
     }
 
     const complaints = await Complaint.find(query)
-      .populate('student', 'name email hostel roomNumber phone')
-      .populate('assignedTo', 'name email phone')
+      .populate('student', 'name email hostelBlock roomNo')
+      .populate('assignedTo', 'name email')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -110,8 +107,8 @@ exports.getComplaints = async (req, res, next) => {
 exports.getComplaintById = async (req, res, next) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
-      .populate('student', 'name email hostel roomNumber phone')
-      .populate('assignedTo', 'name email phone')
+      .populate('student', 'name email hostelBlock roomNo')
+      .populate('assignedTo', 'name email')
       .populate('history.updatedBy', 'name role');
 
     if (!complaint) {
@@ -215,7 +212,7 @@ exports.updateComplaintStatus = async (req, res, next) => {
     }
 
     // Ensure staff member only updates their own ticket
-    if (req.user.role === 'staff' && complaint.assignedTo.toString() !== req.user._id.toString()) {
+    if (req.user.role === 'staff' && (!complaint.assignedTo || complaint.assignedTo.toString() !== req.user._id.toString())) {
       res.status(403);
       return next(new Error('Not authorized to update status on this complaint'));
     }

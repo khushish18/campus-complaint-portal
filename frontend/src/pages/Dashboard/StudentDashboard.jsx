@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import Card from '../../components/common/Card/Card';
@@ -7,48 +7,18 @@ import Badge from '../../components/common/Badge/Badge';
 import Table from '../../components/common/Table/Table';
 import Modal from '../../components/common/Modal/Modal';
 import Input from '../../components/common/Input/Input';
+import api from '../../services/api';
 import { 
   PlusCircle, 
   ClipboardList, 
   Clock, 
   CheckCircle, 
   BellRing,
-  Wrench,
-  Sparkles
+  Sparkles,
+  Eye,
+  User,
+  Star
 } from 'lucide-react';
-
-const INITIAL_COMPLAINTS = [
-  {
-    _id: 'c-001',
-    title: 'Water Leakage in Bathroom Tap',
-    description: 'The tap in room bathroom is constantly dripping water, creating wet floor issues.',
-    category: 'plumbing',
-    urgency: 'high',
-    status: 'assigned',
-    createdAt: '2026-08-20T10:30:00Z',
-    assignedTo: { name: 'Ramesh Kumar (Plumbing Dept)' }
-  },
-  {
-    _id: 'c-002',
-    title: 'Ceiling Fan Speed Regulator Broken',
-    description: 'The fan in B-204 only runs at maximum speed. Regulator switch knob does not affect it.',
-    category: 'electrical',
-    urgency: 'low',
-    status: 'resolved',
-    createdAt: '2026-08-18T14:15:00Z',
-    assignedTo: { name: 'Sohan Lal (Electrician)' }
-  },
-  {
-    _id: 'c-003',
-    title: 'Extremely Slow Wi-Fi Connectivity',
-    description: 'Wi-Fi download speeds are below 512Kbps and ping is above 300ms in the evening.',
-    category: 'internet',
-    urgency: 'medium',
-    status: 'pending',
-    createdAt: '2026-08-21T09:00:00Z',
-    assignedTo: null
-  }
-];
 
 const NOTICES = [
   { id: 1, title: 'Power Shut Down Notice', date: 'Aug 22, 10 AM - 1 PM', body: 'Routine generator maintenance will affect Tagore Hall power grids.' },
@@ -58,11 +28,39 @@ const NOTICES = [
 const StudentDashboard = () => {
   const { user } = useAuth();
   const toast = useToast();
-  const [complaints, setComplaints] = useState(INITIAL_COMPLAINTS);
+  
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [raising, setRaising] = useState(false);
+
+  // Detail Modal State
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Feedback State
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+  const fetchComplaints = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/complaints');
+      setComplaints(response.complaints || []);
+    } catch (err) {
+      toast.error(err.message || 'Failed to fetch complaints.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchComplaints();
+  }, []);
 
   // Stats calculators
   const totalTickets = complaints.length;
@@ -70,56 +68,69 @@ const StudentDashboard = () => {
   const resolvedTickets = complaints.filter(c => c.status === 'resolved' || c.status === 'closed').length;
 
   const handleRaiseSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!formTitle || !formDesc) {
       return toast.error('Please enter both title and description.');
     }
 
     setRaising(true);
-    
-    // Simulate AI model categorization and dispatch latency
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // Simulated local AI classification
-    const descLower = `${formTitle.toLowerCase()} ${formDesc.toLowerCase()}`;
-    let category = 'other';
-    let urgency = 'low';
-
-    if (descLower.includes('leak') || descLower.includes('water') || descLower.includes('tap') || descLower.includes('drain')) {
-      category = 'plumbing';
-    } else if (descLower.includes('light') || descLower.includes('fan') || descLower.includes('switch') || descLower.includes('power')) {
-      category = 'electrical';
-    } else if (descLower.includes('wifi') || descLower.includes('internet') || descLower.includes('router') || descLower.includes('lan')) {
-      category = 'internet';
-    } else if (descLower.includes('clean') || descLower.includes('dust') || descLower.includes('garbage') || descLower.includes('sweep')) {
-      category = 'housekeeping';
+    try {
+      const response = await api.post('/complaints', {
+        title: formTitle,
+        description: formDesc
+      });
+      if (response.success) {
+        toast.success(`AI Classifier: Ticket auto-assigned to [${response.complaint.category.toUpperCase()}] with [${response.complaint.urgency.toUpperCase()}] urgency!`);
+        setFormTitle('');
+        setFormDesc('');
+        setIsModalOpen(false);
+        await fetchComplaints();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to submit complaint.');
+    } finally {
+      setRaising(false);
     }
+  };
 
-    if (descLower.includes('shock') || descLower.includes('flood') || descLower.includes('emergency') || descLower.includes('danger') || descLower.includes('burst')) {
-      urgency = 'high';
-    } else if (descLower.includes('broken') || descLower.includes('stuck') || descLower.includes('no work')) {
-      urgency = 'medium';
+  const handleOpenDetailModal = async (complaintId) => {
+    setIsDetailModalOpen(true);
+    setLoadingDetail(true);
+    setSelectedComplaint(null);
+    try {
+      const response = await api.get(`/complaints/${complaintId}`);
+      setSelectedComplaint(response.complaint);
+    } catch (err) {
+      toast.error(err.message || 'Failed to load complaint details.');
+      setIsDetailModalOpen(false);
+    } finally {
+      setLoadingDetail(false);
     }
+  };
 
-    const newTicket = {
-      _id: `c-${Date.now().toString().slice(-4)}`,
-      title: formTitle,
-      description: formDesc,
-      category,
-      urgency,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      assignedTo: null
-    };
-
-    setComplaints([newTicket, ...complaints]);
-    toast.success(`AI Classifier: Ticket auto-assigned to [${category.toUpperCase()}] with [${urgency.toUpperCase()}] priority!`);
-    
-    // Reset Form
-    setFormTitle('');
-    setFormDesc('');
-    setRaising(false);
-    setIsModalOpen(false);
+  const handleFeedbackSubmit = async (e) => {
+    e.preventDefault();
+    if (!feedbackRating) {
+      return toast.error('Please select a rating.');
+    }
+    setSubmittingFeedback(true);
+    try {
+      const response = await api.patch(`/complaints/${selectedComplaint._id}/feedback`, {
+        rating: Number(feedbackRating),
+        comment: feedbackComment
+      });
+      if (response.success) {
+        toast.success('Complaint closed and feedback recorded successfully!');
+        setFeedbackComment('');
+        setFeedbackRating(5);
+        setIsDetailModalOpen(false);
+        await fetchComplaints();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to submit feedback.');
+    } finally {
+      setSubmittingFeedback(false);
+    }
   };
 
   const columns = [
@@ -156,6 +167,15 @@ const StudentDashboard = () => {
           {row.assignedTo ? row.assignedTo.name : 'Unassigned'}
         </span>
       )
+    },
+    {
+      header: 'Action',
+      key: 'action',
+      render: (row) => (
+        <Button variant="outline" size="sm" icon={Eye} onClick={() => handleOpenDetailModal(row._id)}>
+          View
+        </Button>
+      )
     }
   ];
 
@@ -178,7 +198,7 @@ const StudentDashboard = () => {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.25rem' }}>Welcome Back, {user?.name}!</h2>
           <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-            Hostel: <strong style={{ color: 'var(--primary)' }}>{user?.hostel}</strong> | Room: <strong style={{ color: 'var(--primary)' }}>{user?.roomNumber}</strong>
+            Hostel: <strong style={{ color: 'var(--primary)' }}>{user?.hostelBlock || 'N/A'}</strong> | Room: <strong style={{ color: 'var(--primary)' }}>{user?.roomNo || 'N/A'}</strong>
           </p>
         </div>
         <Button variant="primary" icon={PlusCircle} onClick={() => setIsModalOpen(true)}>
@@ -228,11 +248,15 @@ const StudentDashboard = () => {
         
         {/* Table list */}
         <Card title="Recent Complaints History">
-          <Table 
-            columns={columns} 
-            data={complaints} 
-            emptyMessage="You have not submitted any complaints yet."
-          />
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading complaints...</div>
+          ) : (
+            <Table 
+              columns={columns} 
+              data={complaints} 
+              emptyMessage="You have not submitted any complaints yet."
+            />
+          )}
         </Card>
 
         {/* Notices Board */}
@@ -257,12 +281,12 @@ const StudentDashboard = () => {
       {/* Modal Form for Raising Complaint */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => !raising && setIsModalOpen(false)}
         title="Raise Maintenance Ticket"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={handleRaiseSubmit} loading={raising}>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)} disabled={raising}>Cancel</Button>
+            <Button variant="primary" onClick={handleRaiseSubmit} loading={raising} disabled={raising}>
               Analyze & Submit
             </Button>
           </>
@@ -304,6 +328,162 @@ const StudentDashboard = () => {
             <span>AI will automatically analyze your issue to determine Category & Urgency.</span>
           </div>
         </form>
+      </Modal>
+
+      {/* Complaint Detail & Feedback Modal */}
+      <Modal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        title="Complaint Details"
+      >
+        {loadingDetail && (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading details...</div>
+        )}
+
+        {!loadingDetail && selectedComplaint && (
+          <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                {selectedComplaint.title}
+              </h3>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ticket ID: {selectedComplaint._id}</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <Badge status={selectedComplaint.status}>{selectedComplaint.status}</Badge>
+              <Badge status={selectedComplaint.urgency}>{selectedComplaint.urgency} Priority</Badge>
+              <Badge status="other">{selectedComplaint.category}</Badge>
+            </div>
+
+            <div>
+              <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Description</h5>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.4, backgroundColor: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+                {selectedComplaint.description}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Assigned staff member</span>
+                <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  {selectedComplaint.assignedTo ? selectedComplaint.assignedTo.name : 'Not assigned yet'}
+                </strong>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Date created</span>
+                <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  {new Date(selectedComplaint.createdAt).toLocaleDateString()}
+                </strong>
+              </div>
+            </div>
+
+            {/* Timeline history */}
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+              <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Update History Log</h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {selectedComplaint.history && selectedComplaint.history.map((h, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.85rem' }}>
+                    <div style={{ minWidth: '80px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', flex: 1 }}>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Status: <span style={{ textTransform: 'capitalize' }}>{h.status}</span>
+                      </span>
+                      {h.remarks && <span style={{ color: 'var(--text-secondary)' }}>{h.remarks}</span>}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        By {h.updatedBy?.name} ({h.updatedBy?.role})
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Student Feedback Form for Resolution closure */}
+            {selectedComplaint.status === 'resolved' && (
+              <form onSubmit={handleFeedbackSubmit} style={{ borderTop: '2px dashed var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                <h4 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  <Star size={18} style={{ color: 'var(--warning)' }} />
+                  Close Complaint & Submit Feedback
+                </h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem' }}>
+                      Overall Rating (1 - 5 Stars)
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setFeedbackRating(star)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: star <= feedbackRating ? 'var(--warning)' : 'var(--text-muted)',
+                            padding: 0
+                          }}
+                        >
+                          <Star size={24} fill={star <= feedbackRating ? 'var(--warning)' : 'none'} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Input
+                    label="Remarks / Feedback Comments"
+                    type="textarea"
+                    name="feedbackComment"
+                    value={feedbackComment}
+                    onChange={(e) => setFeedbackComment(e.target.value)}
+                    placeholder="Let us know if you are satisfied with the service and resolution..."
+                    disabled={submittingFeedback}
+                  />
+
+                  <Button
+                    variant="primary"
+                    type="submit"
+                    loading={submittingFeedback}
+                    disabled={submittingFeedback}
+                    style={{ width: '100%', marginTop: '0.5rem' }}
+                  >
+                    Resolve & Close Ticket
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* Closed Ticket Feedback Display */}
+            {selectedComplaint.status === 'closed' && (
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', backgroundColor: 'var(--success-light)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+                <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                  Resolved & Closed
+                </h5>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.4rem' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      size={14}
+                      color="var(--warning)"
+                      fill={star <= selectedComplaint.feedbackRating ? 'var(--warning)' : 'none'}
+                    />
+                  ))}
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
+                    Rating: {selectedComplaint.feedbackRating}/5
+                  </span>
+                </div>
+                {selectedComplaint.feedbackComment && (
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontStyle: 'italic', margin: 0 }}>
+                    "{selectedComplaint.feedbackComment}"
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
     </div>
