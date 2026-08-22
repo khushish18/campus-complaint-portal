@@ -37,13 +37,20 @@ exports.createComplaint = async (req, res, next) => {
       ],
     });
 
-    // Notify wardens via Socket.io
-    broadcast('newComplaint', {
-      complaintId: complaint._id,
-      title: complaint.title,
-      category: complaint.category,
-      urgency: complaint.urgency,
-    });
+    // Notify block-specific wardens via Socket.io
+    try {
+      const wardens = await User.find({ role: 'warden', hostelBlock: req.user.hostelBlock }).select('_id');
+      wardens.forEach(warden => {
+        notifyUser(warden._id, 'newComplaint', {
+          complaintId: complaint._id,
+          title: complaint.title,
+          category: complaint.category,
+          urgency: complaint.urgency,
+        });
+      });
+    } catch (err) {
+      console.error('Socket notification error in createComplaint:', err.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -161,6 +168,12 @@ exports.assignComplaint = async (req, res, next) => {
       return next(new Error('Complaint not found'));
     }
 
+    // State machine check
+    if (['resolved', 'closed'].includes(complaint.status)) {
+      res.status(400);
+      return next(new Error(`Cannot assign a complaint that is already ${complaint.status}`));
+    }
+
     complaint.assignedTo = staffId;
     complaint.status = 'assigned';
     complaint.history.push({
@@ -171,10 +184,18 @@ exports.assignComplaint = async (req, res, next) => {
 
     await complaint.save();
 
-    // Notify staff member (Socket.io + Email)
+    // Notify staff member (Socket.io)
     notifyUser(staffId, 'complaintAssigned', {
       complaintId: complaint._id,
       title: complaint.title,
+    });
+
+    // Notify student about the status update
+    notifyUser(complaint.student, 'statusUpdate', {
+      complaintId: complaint._id,
+      title: complaint.title,
+      status: 'assigned',
+      remarks: remarks || `Assigned to staff: ${staff.name}`,
     });
 
     await sendEmail({
@@ -205,10 +226,24 @@ exports.updateComplaintStatus = async (req, res, next) => {
       return next(new Error('Invalid status. Use "in-progress" or "resolved"'));
     }
 
-    const complaint = await Complaint.findById(req.params.id).populate('student', 'name email');
+    const complaint = await Complaint.findById(req.params.id).populate('student', 'name email hostelBlock');
     if (!complaint) {
       res.status(404);
       return next(new Error('Complaint not found'));
+    }
+
+    // State machine checks
+    if (complaint.status === 'closed') {
+      res.status(400);
+      return next(new Error('Cannot update status of a closed complaint'));
+    }
+    if (complaint.status === 'resolved' && status === 'in-progress') {
+      res.status(400);
+      return next(new Error('Cannot set status to "in-progress" on a resolved complaint'));
+    }
+    if (complaint.status === 'pending' && status === 'resolved') {
+      res.status(400);
+      return next(new Error('Cannot resolve a complaint before it is assigned'));
     }
 
     // Ensure staff member only updates their own ticket
@@ -232,6 +267,23 @@ exports.updateComplaintStatus = async (req, res, next) => {
       title: complaint.title,
       status,
     });
+
+    // Notify block-specific wardens
+    try {
+      if (complaint.student && complaint.student.hostelBlock) {
+        const wardens = await User.find({ role: 'warden', hostelBlock: complaint.student.hostelBlock }).select('_id');
+        wardens.forEach(warden => {
+          notifyUser(warden._id, 'statusUpdate', {
+            complaintId: complaint._id,
+            title: complaint.title,
+            status,
+            studentName: complaint.student.name,
+          });
+        });
+      }
+    } catch (err) {
+      console.error('Socket notification error in updateComplaintStatus:', err.message);
+    }
 
     await sendEmail({
       to: complaint.student.email,
@@ -272,6 +324,12 @@ exports.submitFeedback = async (req, res, next) => {
       return next(new Error('Not authorized to submit feedback for this complaint'));
     }
 
+    // State machine check
+    if (complaint.status !== 'resolved') {
+      res.status(400);
+      return next(new Error('Complaint must be resolved before it can be closed'));
+    }
+
     complaint.status = 'closed';
     complaint.feedbackRating = rating;
     complaint.feedbackComment = comment || '';
@@ -283,11 +341,30 @@ exports.submitFeedback = async (req, res, next) => {
 
     await complaint.save();
 
-    // Broadcast update (to warden/staff if listening)
-    broadcast('complaintClosed', {
-      complaintId: complaint._id,
-      rating,
-    });
+    // Notify assigned staff and block wardens in real-time
+    try {
+      if (complaint.assignedTo) {
+        notifyUser(complaint.assignedTo, 'complaintClosed', {
+          complaintId: complaint._id,
+          title: complaint.title,
+          rating,
+        });
+      }
+
+      const studentUser = await User.findById(complaint.student).select('hostelBlock');
+      if (studentUser && studentUser.hostelBlock) {
+        const wardens = await User.find({ role: 'warden', hostelBlock: studentUser.hostelBlock }).select('_id');
+        wardens.forEach(warden => {
+          notifyUser(warden._id, 'complaintClosed', {
+            complaintId: complaint._id,
+            title: complaint.title,
+            rating,
+          });
+        });
+      }
+    } catch (err) {
+      console.error('Socket notification error in submitFeedback:', err.message);
+    }
 
     res.json({
       success: true,

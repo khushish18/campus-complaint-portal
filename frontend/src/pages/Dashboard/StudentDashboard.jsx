@@ -26,7 +26,7 @@ const NOTICES = [
 ];
 
 const StudentDashboard = () => {
-  const { user } = useAuth();
+  const { user, socket } = useAuth();
   const toast = useToast();
   
   const [complaints, setComplaints] = useState([]);
@@ -58,9 +58,51 @@ const StudentDashboard = () => {
     }
   };
 
+  const refreshDetailSilently = async (complaintId) => {
+    try {
+      const response = await api.get(`/complaints/${complaintId}`);
+      setSelectedComplaint(response.complaint);
+    } catch (err) {
+      console.error('Failed to silently refresh details:', err.message);
+    }
+  };
+
   useEffect(() => {
     fetchComplaints();
+
+    const handleOpenDetailEvent = (e) => {
+      if (e.detail && e.detail.complaintId) {
+        handleOpenDetailModal(e.detail.complaintId);
+      }
+    };
+    window.addEventListener('openComplaintDetail', handleOpenDetailEvent);
+    return () => {
+      window.removeEventListener('openComplaintDetail', handleOpenDetailEvent);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSocketEvent = (data) => {
+      fetchComplaints();
+      if (selectedComplaint && selectedComplaint._id === data.complaintId) {
+        refreshDetailSilently(data.complaintId);
+      }
+    };
+
+    socket.on('newComplaint', handleSocketEvent);
+    socket.on('complaintAssigned', handleSocketEvent);
+    socket.on('statusUpdate', handleSocketEvent);
+    socket.on('complaintClosed', handleSocketEvent);
+
+    return () => {
+      socket.off('newComplaint', handleSocketEvent);
+      socket.off('complaintAssigned', handleSocketEvent);
+      socket.off('statusUpdate', handleSocketEvent);
+      socket.off('complaintClosed', handleSocketEvent);
+    };
+  }, [socket, selectedComplaint]);
 
   // Stats calculators
   const totalTickets = complaints.length;

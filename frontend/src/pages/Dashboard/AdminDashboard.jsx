@@ -5,6 +5,7 @@ import Table from '../../components/common/Table/Table';
 import Modal from '../../components/common/Modal/Modal';
 import Button from '../../components/common/Button/Button';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { 
   Users, 
   ShieldCheck, 
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 
 const AdminDashboard = () => {
+  const { socket } = useAuth();
   const [stats, setStats] = useState(null);
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,15 @@ const AdminDashboard = () => {
     }
   };
 
+  const refreshDetailSilently = async (complaintId) => {
+    try {
+      const response = await api.get(`/complaints/${complaintId}`);
+      setDetailComplaint(response.complaint);
+    } catch (err) {
+      console.error('Failed to silently refresh details:', err.message);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -49,7 +60,41 @@ const AdminDashboard = () => {
       setLoading(false);
     };
     loadData();
+
+    const handleOpenDetailEvent = (e) => {
+      if (e.detail && e.detail.complaintId) {
+        handleOpenDetailModal(e.detail.complaintId);
+      }
+    };
+    window.addEventListener('openComplaintDetail', handleOpenDetailEvent);
+    return () => {
+      window.removeEventListener('openComplaintDetail', handleOpenDetailEvent);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSocketEvent = (data) => {
+      fetchStats();
+      fetchComplaints();
+      if (detailComplaint && detailComplaint._id === data.complaintId) {
+        refreshDetailSilently(data.complaintId);
+      }
+    };
+
+    socket.on('newComplaint', handleSocketEvent);
+    socket.on('complaintAssigned', handleSocketEvent);
+    socket.on('statusUpdate', handleSocketEvent);
+    socket.on('complaintClosed', handleSocketEvent);
+
+    return () => {
+      socket.off('newComplaint', handleSocketEvent);
+      socket.off('complaintAssigned', handleSocketEvent);
+      socket.off('statusUpdate', handleSocketEvent);
+      socket.off('complaintClosed', handleSocketEvent);
+    };
+  }, [socket, detailComplaint]);
 
   const handleOpenDetailModal = async (complaintId) => {
     setIsDetailModalOpen(true);

@@ -43,7 +43,6 @@ const Layout = ({
           user={user}
           onLogout={onLogout}
           toggleSidebar={toggleSidebarMobile}
-          notificationCount={2}
         />
         
         {/* Page Inner Content Container */}

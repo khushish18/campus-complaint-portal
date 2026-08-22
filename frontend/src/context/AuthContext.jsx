@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import api from '../services/api';
+import { io } from 'socket.io-client';
+import { useToast } from './ToastContext';
 
 const AuthContext = createContext(null);
 
@@ -14,6 +16,129 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [socket, setSocket] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const toast = useToast();
+  const notifiedEvents = useRef(new Set());
+
+  const appendNotification = (message, eventName, complaintId) => {
+    const newNotif = {
+      id: Date.now() + Math.random().toString(36).substr(2, 9),
+      message,
+      timestamp: new Date(),
+      read: false,
+      complaintId,
+      type: eventName
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+  };
+
+  const markAsRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  // Socket connection lifecycle
+  useEffect(() => {
+    if (!user) {
+      setSocket(null);
+      return;
+    }
+
+    const socketInstance = io('http://localhost:5000');
+    
+    socketInstance.emit('register', user.id);
+
+    socketInstance.on('connect', () => {
+      console.log('Socket connected successfully in AuthContext');
+    });
+
+    setSocket(socketInstance);
+
+    return () => {
+      socketInstance.disconnect();
+      setSocket(null);
+    };
+  }, [user]);
+
+  // Global socket notification listeners
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    const handleNewComplaint = (data) => {
+      if (user.role !== 'warden') return;
+      const key = `newComplaint-${data.complaintId}`;
+      if (notifiedEvents.current.has(key)) return;
+      notifiedEvents.current.add(key);
+      const msg = `A new complaint "${data.title}" has been raised in your hostel block.`;
+      toast.info(msg);
+      appendNotification(msg, 'newComplaint', data.complaintId);
+    };
+
+    const handleComplaintAssigned = (data) => {
+      if (user.role !== 'staff') return;
+      const key = `complaintAssigned-${data.complaintId}`;
+      if (notifiedEvents.current.has(key)) return;
+      notifiedEvents.current.add(key);
+      const msg = `A new complaint "${data.title}" has been assigned to you.`;
+      toast.info(msg);
+      appendNotification(msg, 'complaintAssigned', data.complaintId);
+    };
+
+    const handleStatusUpdate = (data) => {
+      const key = `statusUpdate-${data.complaintId}-${data.status}`;
+      if (notifiedEvents.current.has(key)) return;
+      notifiedEvents.current.add(key);
+
+      let msg = '';
+      if (user.role === 'student') {
+        if (data.status === 'assigned') {
+          msg = `Your complaint "${data.title}" has been assigned to a maintenance crew.`;
+          toast.info(msg);
+        } else if (data.status === 'in-progress') {
+          msg = `Work has started on your complaint "${data.title}".`;
+          toast.info(msg);
+        } else if (data.status === 'resolved') {
+          msg = `Your complaint "${data.title}" has been resolved. Please provide feedback!`;
+          toast.success(msg);
+        }
+      } else if (user.role === 'warden') {
+        msg = `Complaint "${data.title}" status updated to [${data.status.toUpperCase()}].`;
+        toast.info(msg);
+      }
+
+      if (msg) {
+        appendNotification(msg, 'statusUpdate', data.complaintId);
+      }
+    };
+
+    const handleComplaintClosed = (data) => {
+      const key = `complaintClosed-${data.complaintId}`;
+      if (notifiedEvents.current.has(key)) return;
+      notifiedEvents.current.add(key);
+
+      if (user.role === 'warden' || user.role === 'staff') {
+        const msg = `Complaint "${data.title || 'Work order'}" has been closed by the student (Rating: ${data.rating}/5).`;
+        toast.success(msg);
+        appendNotification(msg, 'complaintClosed', data.complaintId);
+      }
+    };
+
+    socket.on('newComplaint', handleNewComplaint);
+    socket.on('complaintAssigned', handleComplaintAssigned);
+    socket.on('statusUpdate', handleStatusUpdate);
+    socket.on('complaintClosed', handleComplaintClosed);
+
+    return () => {
+      socket.off('newComplaint', handleNewComplaint);
+      socket.off('complaintAssigned', handleComplaintAssigned);
+      socket.off('statusUpdate', handleStatusUpdate);
+      socket.off('complaintClosed', handleComplaintClosed);
+    };
+  }, [socket, user, toast]);
 
   // Check and restore active user session on mount
   useEffect(() => {
@@ -106,6 +231,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('smart_campus_token');
       localStorage.removeItem('smart_campus_user');
       setUser(null);
+      setNotifications([]);
       setLoading(false);
     }
   };
@@ -117,6 +243,10 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    socket,
+    notifications,
+    markAsRead,
+    markAllAsRead,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
