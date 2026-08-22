@@ -1,49 +1,58 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-// Helper to generate JWT
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'your_jwt_secret_key_here_super_secret', {
-    expiresIn: process.env.JWT_EXPIRE || '24h',
-  });
+// Helper to generate JWT containing only userId and role
+const generateToken = (user) => {
+  return jwt.sign(
+    { userId: user._id, role: user.role },
+    process.env.JWT_SECRET || 'your_jwt_secret_key_here_super_secret',
+    {
+      expiresIn: process.env.JWT_EXPIRE || '24h',
+    }
+  );
 };
 
-// @desc    Register a new user
+// @desc    Register a new student user
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, password, role, hostel, roomNumber, phone } = req.body;
+    const { name, email, password, roomNo, hostelBlock } = req.body;
 
-    // Check if user exists
+    if (!name || !email || !password) {
+      res.status(400);
+      return next(new Error('Please provide name, email, and password'));
+    }
+
+    // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
       res.status(400);
       return next(new Error('User already exists with this email'));
     }
 
-    // Create user
+    // Create user (force role to 'student' to prevent arbitrary admin/staff creation)
     const user = await User.create({
       name,
       email,
-      password,
-      role,
-      hostel,
-      roomNumber,
-      phone,
+      passwordHash: password, // pre-save hook handles hashing
+      role: 'student',
+      roomNo,
+      hostelBlock,
+      isActive: true,
     });
 
     res.status(201).json({
       success: true,
-      token: generateToken(user._id),
+      token: generateToken(user),
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        hostel: user.hostel,
-        roomNumber: user.roomNumber,
-        phone: user.phone,
+        roomNo: user.roomNo,
+        hostelBlock: user.hostelBlock,
+        isActive: user.isActive,
       },
     });
   } catch (error) {
@@ -64,11 +73,17 @@ exports.login = async (req, res, next) => {
       return next(new Error('Please provide email and password'));
     }
 
-    // Check for user
-    const user = await User.findOne({ email }).select('+password');
+    // Check for user (explicitly selecting passwordHash)
+    const user = await User.findOne({ email }).select('+passwordHash');
     if (!user) {
       res.status(401);
       return next(new Error('Invalid email or password'));
+    }
+
+    // Check if user is active
+    if (user.isActive === false) {
+      res.status(403);
+      return next(new Error('Your account is deactivated. Please contact administration.'));
     }
 
     // Check password
@@ -80,16 +95,31 @@ exports.login = async (req, res, next) => {
 
     res.json({
       success: true,
-      token: generateToken(user._id),
+      token: generateToken(user),
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        hostel: user.hostel,
-        roomNumber: user.roomNumber,
-        phone: user.phone,
+        roomNo: user.roomNo,
+        hostelBlock: user.hostelBlock,
+        isActive: user.isActive,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Logout user
+// @route   POST /api/auth/logout
+// @access  Public
+exports.logout = async (req, res, next) => {
+  try {
+    // In stateless JWT, client discards token. Simply return success.
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
     });
   } catch (error) {
     next(error);
@@ -101,9 +131,18 @@ exports.login = async (req, res, next) => {
 // @access  Private
 exports.getMe = async (req, res, next) => {
   try {
+    // req.user is already populated by protect middleware (excluding passwordHash)
     res.json({
       success: true,
-      user: req.user,
+      user: {
+        id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role,
+        roomNo: req.user.roomNo,
+        hostelBlock: req.user.hostelBlock,
+        isActive: req.user.isActive,
+      },
     });
   } catch (error) {
     next(error);
