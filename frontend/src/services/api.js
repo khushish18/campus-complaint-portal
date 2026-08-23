@@ -1,5 +1,7 @@
 const BASE_URL = 'http://localhost:5000/api';
 
+let activeToken = null;
+
 const request = async (endpoint, options = {}) => {
   const url = `${BASE_URL}${endpoint}`;
   
@@ -9,7 +11,7 @@ const request = async (endpoint, options = {}) => {
   };
 
   // Retrieve stored token
-  const token = localStorage.getItem('smart_campus_token');
+  const token = activeToken || localStorage.getItem('smart_campus_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -54,6 +56,10 @@ const request = async (endpoint, options = {}) => {
 };
 
 const api = {
+  setToken: (token) => {
+    activeToken = token;
+  },
+  getToken: () => activeToken,
   get: (endpoint, options) => request(endpoint, { method: 'GET', ...options }),
   post: (endpoint, body, options) => request(endpoint, { method: 'POST', body, ...options }),
   put: (endpoint, body, options) => request(endpoint, { method: 'PUT', body, ...options }),

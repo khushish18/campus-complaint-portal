@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
 
     const socketInstance = io('http://localhost:5000');
     
-    socketInstance.emit('register', user.id);
+    socketInstance.emit('register', user.id || user._id);
 
     socketInstance.on('connect', () => {
       console.log('Socket connected successfully in AuthContext');
@@ -140,6 +140,33 @@ export const AuthProvider = ({ children }) => {
     };
   }, [socket, user, toast]);
 
+  // Listen for storage events to synchronize auth state across tabs
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'smart_campus_token') {
+        const inMemoryToken = api.getToken();
+        if (e.newValue !== inMemoryToken) {
+          if (inMemoryToken) {
+            console.log('Detected external token change. Invalidating session.');
+            api.setToken(null);
+            setUser(null);
+            setNotifications([]);
+            if (!e.newValue) {
+              toast.warning('Session logged out in another tab.');
+            } else {
+              toast.warning('Session changed in another tab. Please log in again.');
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [toast]);
+
   // Check and restore active user session on mount
   useEffect(() => {
     const restoreSession = async () => {
@@ -149,6 +176,8 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
+      api.setToken(token); // Synchronize in-memory token first
+
       try {
         const response = await api.get('/auth/me');
         setUser(response.user);
@@ -157,6 +186,7 @@ export const AuthProvider = ({ children }) => {
         // Clear stale local storage parameters
         localStorage.removeItem('smart_campus_token');
         localStorage.removeItem('smart_campus_user');
+        api.setToken(null);
         setUser(null);
       } finally {
         setLoading(false);
@@ -187,6 +217,7 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/login', { email: loginEmail, password: loginPassword });
       const { token, user: loggedUser } = response;
 
+      api.setToken(token); // Synchronize in-memory token
       localStorage.setItem('smart_campus_token', token);
       localStorage.setItem('smart_campus_user', JSON.stringify(loggedUser));
       setUser(loggedUser);
@@ -211,6 +242,7 @@ export const AuthProvider = ({ children }) => {
       });
       const { token, user: loggedUser } = response;
 
+      api.setToken(token); // Synchronize in-memory token
       localStorage.setItem('smart_campus_token', token);
       localStorage.setItem('smart_campus_user', JSON.stringify(loggedUser));
       setUser(loggedUser);
@@ -228,6 +260,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await api.post('/auth/logout').catch(() => {});
     } finally {
+      api.setToken(null); // Synchronize in-memory token
       localStorage.removeItem('smart_campus_token');
       localStorage.removeItem('smart_campus_user');
       setUser(null);
