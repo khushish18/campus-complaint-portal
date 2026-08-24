@@ -37,6 +37,10 @@ const StudentDashboard = () => {
   const [formDesc, setFormDesc] = useState('');
   const [raising, setRaising] = useState(false);
 
+  // File Upload State
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+
   // Detail Modal State
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -46,6 +50,51 @@ const StudentDashboard = () => {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File size exceeds the 5MB limit.');
+      toast.error('File size exceeds the 5MB limit.');
+      setSelectedFile(null);
+      return;
+    }
+
+    const allowedExtensions = /jpeg|jpg|png|webp|pdf/;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowedExtensions.test(ext) && !allowedExtensions.test(file.type)) {
+      setUploadError('Unsupported file format. Only JPEG, PNG, WEBP, and PDF files are allowed.');
+      toast.error('Unsupported file format. Only JPEG, PNG, WEBP, and PDF files are allowed.');
+      setSelectedFile(null);
+      return;
+    }
+
+    setUploadError(null);
+    setSelectedFile(file);
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setUploadError(null);
+  };
+
+  const handleOpenRaiseModal = () => {
+    setFormTitle('');
+    setFormDesc('');
+    setSelectedFile(null);
+    setUploadError(null);
+    setIsModalOpen(true);
+  };
+
+  const closeRaiseModal = () => {
+    setFormTitle('');
+    setFormDesc('');
+    setSelectedFile(null);
+    setUploadError(null);
+    setIsModalOpen(false);
+  };
 
   const fetchComplaints = async () => {
     try {
@@ -120,15 +169,43 @@ const StudentDashboard = () => {
 
     setRaising(true);
     try {
+      let attachmentsList = [];
+      if (selectedFile) {
+        // Upload the file first
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        try {
+          const uploadRes = await api.post('/complaints/upload', formData);
+          if (uploadRes.success) {
+            attachmentsList.push({
+              url: uploadRes.url,
+              filename: uploadRes.filename,
+              contentType: uploadRes.contentType,
+              sizeBytes: uploadRes.sizeBytes
+            });
+          }
+        } catch (uploadErr) {
+          console.error('File upload failed:', uploadErr);
+          const isCloudinaryDisabled = uploadErr.status === 503;
+          if (isCloudinaryDisabled) {
+            toast.warning('Evidence upload is disabled on the server. Creating complaint without attachment.');
+          } else {
+            toast.error('File upload failed: ' + uploadErr.message + '. Creating complaint without attachment.');
+          }
+        }
+      }
+
       const response = await api.post('/complaints', {
         title: formTitle,
-        description: formDesc
+        description: formDesc,
+        attachments: attachmentsList
       });
+
       if (response.success) {
-        toast.success(`AI Classifier: Ticket auto-assigned to [${response.complaint.category.toUpperCase()}] with [${response.complaint.urgency.toUpperCase()}] urgency!`);
-        setFormTitle('');
-        setFormDesc('');
-        setIsModalOpen(false);
+        const providerName = response.complaint.aiAnalysis?.provider || 'local-heuristic';
+        toast.success(`AI Classifier [${providerName.toUpperCase()}]: Auto-assigned to [${response.complaint.category.toUpperCase()}] with [${response.complaint.urgency.toUpperCase()}] urgency!`);
+        closeRaiseModal();
         await fetchComplaints();
       }
     } catch (err) {
@@ -246,7 +323,7 @@ const StudentDashboard = () => {
             Hostel: <strong style={{ color: 'var(--primary)' }}>{user?.hostelBlock || 'N/A'}</strong> | Room: <strong style={{ color: 'var(--primary)' }}>{user?.roomNo || 'N/A'}</strong>
           </p>
         </div>
-        <Button variant="primary" icon={PlusCircle} onClick={() => setIsModalOpen(true)}>
+        <Button variant="primary" icon={PlusCircle} onClick={handleOpenRaiseModal}>
           Raise New Complaint
         </Button>
       </div>
@@ -344,11 +421,11 @@ const StudentDashboard = () => {
       {/* Modal Form for Raising Complaint */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => !raising && setIsModalOpen(false)}
+        onClose={() => !raising && closeRaiseModal()}
         title="Raise Maintenance Ticket"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)} disabled={raising}>Cancel</Button>
+            <Button variant="secondary" onClick={closeRaiseModal} disabled={raising}>Cancel</Button>
             <Button variant="primary" onClick={handleRaiseSubmit} loading={raising} disabled={raising}>
               Analyze & Submit
             </Button>
@@ -375,8 +452,52 @@ const StudentDashboard = () => {
             required
             disabled={raising}
           />
+
+          {/* Evidence Upload Section */}
+          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', textAlign: 'left' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              Attach Evidence / Image / PDF (Optional, max 5MB)
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.pdf"
+                onChange={handleFileChange}
+                disabled={raising}
+                style={{ fontSize: '0.85rem' }}
+              />
+              {selectedFile && (
+                <button
+                  type="button"
+                  onClick={handleRemoveFile}
+                  disabled={raising}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: 'var(--danger)',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: 700
+                  }}
+                >
+                  Remove File
+                </button>
+              )}
+            </div>
+            {selectedFile && (
+              <span style={{ fontSize: '0.8rem', color: 'var(--success)', fontWeight: 600 }}>
+                Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+              </span>
+            )}
+            {uploadError && (
+              <span style={{ fontSize: '0.8rem', color: 'var(--danger)', fontWeight: 600 }}>
+                {uploadError}
+              </span>
+            )}
+          </div>
+
           <div style={{ 
-            marginTop: '1rem',
+            marginTop: '1.25rem',
             padding: '0.75rem',
             backgroundColor: 'var(--primary-light)',
             borderRadius: 'var(--radius-sm)',
@@ -424,6 +545,84 @@ const StudentDashboard = () => {
                 {selectedComplaint.description}
               </p>
             </div>
+
+            {selectedComplaint.attachments && selectedComplaint.attachments.length > 0 && (
+              <div>
+                <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                  Evidence Attachments
+                </h5>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {selectedComplaint.attachments.map((file, idx) => {
+                    const isPdf = file.contentType === 'application/pdf' || (file.filename && file.filename.toLowerCase().endsWith('.pdf'));
+                    return (
+                      <div key={idx} style={{
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '0.5rem',
+                        backgroundColor: 'var(--bg-secondary)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        maxWidth: '120px'
+                      }}>
+                        {isPdf ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                            <span style={{ fontSize: '1.5rem' }}>📄</span>
+                            <a
+                              href={file.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--primary)',
+                                textDecoration: 'none',
+                                fontWeight: 700,
+                                textOverflow: 'ellipsis',
+                                overflow: 'hidden',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '100px'
+                              }}
+                              title={file.filename || 'PDF Document'}
+                            >
+                              Open PDF
+                            </a>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                            <img
+                              src={file.url}
+                              alt={file.filename || 'Evidence image'}
+                              style={{
+                                width: '100px',
+                                height: '70px',
+                                objectFit: 'cover',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => window.open(file.url, '_blank')}
+                              title="Click to view full image"
+                            />
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                color: 'var(--text-muted)',
+                                textOverflow: 'ellipsis',
+                                overflow: 'hidden',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '100px'
+                              }}
+                            >
+                              {file.filename || 'Evidence'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
               <div>

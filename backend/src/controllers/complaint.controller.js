@@ -3,6 +3,27 @@ const User = require('../models/User');
 const { analyzeComplaint } = require('../services/ai.service');
 const { sendEmail } = require('../services/email.service');
 const { notifyUser, broadcast } = require('../config/socket');
+const cloudinary = require('cloudinary').v2;
+
+// Cloudinary configuration helper
+const configureCloudinary = () => {
+  const cloud = process.env.CLOUDINARY_CLOUD_NAME;
+  const key = process.env.CLOUDINARY_API_KEY;
+  const secret = process.env.CLOUDINARY_API_SECRET;
+
+  const isMock = !cloud || cloud === 'mock_cloud' || cloud.startsWith('your_') || !key || !secret;
+
+  if (isMock) {
+    return null;
+  }
+
+  cloudinary.config({
+    cloud_name: cloud,
+    api_key: key,
+    api_secret: secret
+  });
+  return cloudinary;
+};
 
 // @desc    Raise a new complaint (Student)
 // @route   POST /api/complaints
@@ -16,8 +37,8 @@ exports.createComplaint = async (req, res, next) => {
       return next(new Error('Title and description are required'));
     }
 
-    // Call AI Service to tag category & urgency
-    const aiResults = await analyzeComplaint(title, description);
+    // Call AI Service to tag category & urgency (passing attachments context if available)
+    const aiResults = await analyzeComplaint(title, description, attachments);
 
     // Create complaint
     const complaint = await Complaint.create({
@@ -27,12 +48,20 @@ exports.createComplaint = async (req, res, next) => {
       attachments: attachments || [],
       category: aiResults.category,
       urgency: aiResults.urgency,
+      aiAnalysis: {
+        category: aiResults.category,
+        urgency: aiResults.urgency,
+        summary: aiResults.summary,
+        suggestedDepartment: aiResults.suggestedDepartment,
+        confidence: aiResults.confidence,
+        provider: aiResults.provider
+      },
       status: 'pending',
       history: [
         {
           status: 'pending',
           updatedBy: req.user._id,
-          remarks: `Complaint submitted. AI categorized as [${aiResults.category}] with [${aiResults.urgency}] urgency.`,
+          remarks: `Complaint submitted. AI [${aiResults.provider || 'local-heuristic'}] categorized as [${aiResults.category.toUpperCase()}] with [${aiResults.urgency.toUpperCase()}] urgency. Suggested department: [${aiResults.suggestedDepartment || 'N/A'}]`,
         },
       ],
     });
@@ -57,6 +86,58 @@ exports.createComplaint = async (req, res, next) => {
       complaint,
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Upload file attachment to Cloudinary
+// @route   POST /api/complaints/upload
+// @access  Private (Student)
+exports.uploadAttachment = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      res.status(400);
+      return next(new Error('Please select a file to upload'));
+    }
+
+    // Verify Cloudinary configuration
+    const cloudInstance = configureCloudinary();
+    if (!cloudInstance) {
+      console.warn('Cloudinary not configured. Upload is unavailable.');
+      res.status(503);
+      return next(new Error('Evidence upload is currently disabled (Cloudinary not configured on this server).'));
+    }
+
+    // Upload to Cloudinary using upload_stream
+    const uploadStream = () => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'smartcampus_evidence' },
+          (error, result) => {
+            if (error) {
+              return reject(error);
+            }
+            resolve(result);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+    };
+
+    console.log('Cloudinary: Initiating upload stream for:', req.file.originalname);
+    const result = await uploadStream();
+    console.log('Cloudinary: Upload successful:', result.secure_url);
+
+    res.status(200).json({
+      success: true,
+      url: result.secure_url,
+      filename: req.file.originalname,
+      contentType: req.file.mimetype,
+      sizeBytes: req.file.size
+    });
+  } catch (error) {
+    console.error('Cloudinary Upload Error:', error.message);
+    res.status(500);
     next(error);
   }
 };
@@ -132,6 +213,11 @@ exports.getComplaintById = async (req, res, next) => {
     if (req.user.role === 'staff' && complaint.assignedTo && complaint.assignedTo._id.toString() !== req.user._id.toString()) {
       res.status(403);
       return next(new Error('Not authorized to view this complaint'));
+    }
+
+    if (req.user.role === 'warden' && req.user.hostelBlock && complaint.student && complaint.student.hostelBlock !== req.user.hostelBlock) {
+      res.status(403);
+      return next(new Error('Not authorized to view complaints outside your hostel wing'));
     }
 
     res.json({

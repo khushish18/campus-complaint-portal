@@ -413,6 +413,84 @@ const WardenDashboard = () => {
               </p>
             </div>
 
+            {detailComplaint.attachments && detailComplaint.attachments.length > 0 && (
+              <div>
+                <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                  Evidence Attachments
+                </h5>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {detailComplaint.attachments.map((file, idx) => {
+                    const isPdf = file.contentType === 'application/pdf' || (file.filename && file.filename.toLowerCase().endsWith('.pdf'));
+                    return (
+                      <div key={idx} style={{
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '0.5rem',
+                        backgroundColor: 'var(--bg-secondary)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        maxWidth: '120px'
+                      }}>
+                        {isPdf ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                            <span style={{ fontSize: '1.5rem' }}>📄</span>
+                            <a
+                              href={file.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--primary)',
+                                textDecoration: 'none',
+                                fontWeight: 700,
+                                textOverflow: 'ellipsis',
+                                overflow: 'hidden',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '100px'
+                              }}
+                              title={file.filename || 'PDF Document'}
+                            >
+                              Open PDF
+                            </a>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                            <img
+                              src={file.url}
+                              alt={file.filename || 'Evidence image'}
+                              style={{
+                                width: '100px',
+                                height: '70px',
+                                objectFit: 'cover',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => window.open(file.url, '_blank')}
+                              title="Click to view full image"
+                            />
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                color: 'var(--text-muted)',
+                                textOverflow: 'ellipsis',
+                                overflow: 'hidden',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '100px'
+                              }}
+                            >
+                              {file.filename || 'Evidence'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
               <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Update History Log</h5>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

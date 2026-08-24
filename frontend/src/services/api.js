@@ -6,9 +6,13 @@ const request = async (endpoint, options = {}) => {
   const url = `${BASE_URL}${endpoint}`;
   
   const headers = {
-    'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  const isFormData = options.body instanceof FormData;
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   // Retrieve stored token
   const token = activeToken || localStorage.getItem('smart_campus_token');
@@ -21,8 +25,12 @@ const request = async (endpoint, options = {}) => {
     headers,
   };
 
-  if (options.body && typeof options.body === 'object') {
-    config.body = JSON.stringify(options.body);
+  if (options.body) {
+    if (isFormData) {
+      config.body = options.body;
+    } else if (typeof options.body === 'object') {
+      config.body = JSON.stringify(options.body);
+    }
   }
 
   try {

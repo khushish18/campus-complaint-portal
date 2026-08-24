@@ -59,9 +59,21 @@ const complaintSchema = new mongoose.Schema(
     },
     attachments: [
       {
-        type: String, // Cloudinary URLs
-      },
+        url: { type: String, required: true },
+        filename: { type: String },
+        contentType: { type: String },
+        sizeBytes: { type: Number }
+      }
     ],
+    aiAnalysis: {
+      category: { type: String },
+      urgency: { type: String },
+      summary: { type: String },
+      suggestedDepartment: { type: String },
+      confidence: { type: Number },
+      provider: { type: String },
+      analyzedAt: { type: Date, default: Date.now }
+    },
     feedbackRating: {
       type: Number,
       min: 1,
