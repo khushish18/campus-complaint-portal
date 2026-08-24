@@ -31,6 +31,7 @@ const StudentDashboard = () => {
   
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
   const [formDesc, setFormDesc] = useState('');
@@ -49,9 +50,11 @@ const StudentDashboard = () => {
   const fetchComplaints = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await api.get('/complaints');
       setComplaints(response.complaints || []);
     } catch (err) {
+      setError(err.message || 'Failed to fetch complaints.');
       toast.error(err.message || 'Failed to fetch complaints.');
     } finally {
       setLoading(false);
@@ -291,7 +294,25 @@ const StudentDashboard = () => {
         {/* Table list */}
         <Card title="Recent Complaints History">
           {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading complaints...</div>
+            <div className="skeleton-container" style={{ padding: '1rem' }}>
+              <div className="skeleton-row">
+                <div className="skeleton-item title"></div>
+                <div className="skeleton-item badge" style={{ marginLeft: 'auto' }}></div>
+              </div>
+              <div className="skeleton-item text"></div>
+              <div className="skeleton-item text" style={{ width: '85%' }}></div>
+              <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '0.75rem 0' }} />
+              <div className="skeleton-row">
+                <div className="skeleton-item title" style={{ width: '30%' }}></div>
+                <div className="skeleton-item badge" style={{ marginLeft: 'auto' }}></div>
+              </div>
+              <div className="skeleton-item text" style={{ width: '90%' }}></div>
+            </div>
+          ) : error ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger)' }}>
+              <p style={{ marginBottom: '1rem', fontWeight: 600 }}>{error}</p>
+              <Button variant="outline" size="sm" onClick={fetchComplaints}>Retry Connection</Button>
+            </div>
           ) : (
             <Table 
               columns={columns} 

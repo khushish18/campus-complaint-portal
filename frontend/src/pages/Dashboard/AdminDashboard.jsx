@@ -20,6 +20,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Detail Modal State
   const [detailComplaint, setDetailComplaint] = useState(null);
@@ -27,21 +28,13 @@ const AdminDashboard = () => {
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const fetchStats = async () => {
-    try {
-      const response = await api.get('/users/stats');
-      setStats(response.stats);
-    } catch (err) {
-      console.error('Failed to fetch statistics:', err.message);
-    }
+    const response = await api.get('/users/stats');
+    setStats(response.stats);
   };
 
   const fetchComplaints = async () => {
-    try {
-      const response = await api.get('/complaints');
-      setComplaints(response.complaints || []);
-    } catch (err) {
-      console.error('Failed to fetch complaints:', err.message);
-    }
+    const response = await api.get('/complaints');
+    setComplaints(response.complaints || []);
   };
 
   const refreshDetailSilently = async (complaintId) => {
@@ -53,12 +46,19 @@ const AdminDashboard = () => {
     }
   };
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = async () => {
+    try {
       setLoading(true);
+      setError(null);
       await Promise.all([fetchStats(), fetchComplaints()]);
+    } catch (err) {
+      setError(err.message || 'Failed to load system dashboard data.');
+    } finally {
       setLoading(false);
-    };
+    }
+  };
+
+  useEffect(() => {
     loadData();
 
     const handleOpenDetailEvent = (e) => {
@@ -246,7 +246,25 @@ const AdminDashboard = () => {
         {/* Live Complaint Monitoring Stream */}
         <Card title="Live Complaint System Event Stream" extra={<Terminal size={18} style={{ color: 'var(--text-muted)' }} />}>
           {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading system feed...</div>
+            <div className="skeleton-container" style={{ padding: '1rem' }}>
+              <div className="skeleton-row">
+                <div className="skeleton-item title"></div>
+                <div className="skeleton-item badge" style={{ marginLeft: 'auto' }}></div>
+              </div>
+              <div className="skeleton-item text"></div>
+              <div className="skeleton-item text" style={{ width: '85%' }}></div>
+              <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '0.75rem 0' }} />
+              <div className="skeleton-row">
+                <div className="skeleton-item title" style={{ width: '30%' }}></div>
+                <div className="skeleton-item badge" style={{ marginLeft: 'auto' }}></div>
+              </div>
+              <div className="skeleton-item text" style={{ width: '90%' }}></div>
+            </div>
+          ) : error ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger)' }}>
+              <p style={{ marginBottom: '1rem', fontWeight: 600 }}>{error}</p>
+              <Button variant="outline" size="sm" onClick={loadData}>Retry Connection</Button>
+            </div>
           ) : (
             <Table 
               columns={columns} 

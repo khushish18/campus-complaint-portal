@@ -24,6 +24,7 @@ const StaffDashboard = () => {
   
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
 
   // Status Action Modal State
@@ -41,9 +42,11 @@ const StaffDashboard = () => {
   const fetchJobs = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await api.get('/complaints');
       setJobs(response.complaints || []);
     } catch (err) {
+      setError(err.message || 'Failed to fetch assigned jobs.');
       toast.error(err.message || 'Failed to fetch assigned jobs.');
     } finally {
       setLoading(false);
@@ -277,7 +280,25 @@ const StaffDashboard = () => {
       {/* Jobs Table */}
       <Card title="Active Work Orders Allocation">
         {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading task sheet...</div>
+          <div className="skeleton-container" style={{ padding: '1rem' }}>
+            <div className="skeleton-row">
+              <div className="skeleton-item title"></div>
+              <div className="skeleton-item badge" style={{ marginLeft: 'auto' }}></div>
+            </div>
+            <div className="skeleton-item text"></div>
+            <div className="skeleton-item text" style={{ width: '85%' }}></div>
+            <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '0.75rem 0' }} />
+            <div className="skeleton-row">
+              <div className="skeleton-item title" style={{ width: '30%' }}></div>
+              <div className="skeleton-item badge" style={{ marginLeft: 'auto' }}></div>
+            </div>
+            <div className="skeleton-item text" style={{ width: '90%' }}></div>
+          </div>
+        ) : error ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger)' }}>
+            <p style={{ marginBottom: '1rem', fontWeight: 600 }}>{error}</p>
+            <Button variant="outline" size="sm" onClick={fetchJobs}>Retry Connection</Button>
+          </div>
         ) : (
           <Table
             columns={columns}

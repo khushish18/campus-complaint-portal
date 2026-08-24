@@ -30,10 +30,22 @@ const userSchema = new mongoose.Schema(
     roomNo: {
       type: String,
       trim: true,
+      required: [
+        function() { return this.role === 'student'; },
+        'Room number is required for students'
+      ]
     },
     hostelBlock: {
       type: String,
       trim: true,
+      enum: {
+        values: ['Tagore Hall', 'Radhakrishnan Hall', 'Nehru Hall', 'Patel Hall'],
+        message: '{VALUE} is not a valid hostel block'
+      },
+      required: [
+        function() { return this.role === 'student' || this.role === 'warden'; },
+        'Hostel block is required for students and wardens'
+      ]
     },
     isActive: {
       type: Boolean,

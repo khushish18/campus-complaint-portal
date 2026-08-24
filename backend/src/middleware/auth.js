@@ -11,14 +11,16 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
 
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_here_super_secret');
-      console.log('DEBUG: Decoded token:', decoded);
+      const secret = process.env.JWT_SECRET;
+      if (!secret) {
+        res.status(500);
+        return next(new Error('JWT_SECRET is not configured on the server'));
+      }
+      const decoded = jwt.verify(token, secret);
 
       // Fetch user from DB using the decoded userId
       const userId = decoded.userId || decoded.id; // support fallback
-      console.log('DEBUG: userId resolved:', userId);
       const user = await User.findById(userId).select('-passwordHash');
-      console.log('DEBUG: Fetched user from DB:', user ? { id: user._id, name: user.name, role: user.role } : null);
 
       if (!user) {
         res.status(401);

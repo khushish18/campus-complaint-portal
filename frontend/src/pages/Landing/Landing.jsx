@@ -51,6 +51,10 @@ const Landing = () => {
       return toast.error('Please enter name, email, and password.');
     }
 
+    if (!regHostelBlock || !regRoomNo) {
+      return toast.error('Please select a hostel block and enter your room number.');
+    }
+
     if (regPassword.length < 6) {
       return toast.error('Password must be at least 6 characters.');
     }
@@ -189,11 +193,18 @@ const Landing = () => {
             <div className="form-grid-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <Input
                 label="Hostel Block"
-                type="text"
+                type="select"
                 name="regHostelBlock"
                 value={regHostelBlock}
                 onChange={(e) => setRegHostelBlock(e.target.value)}
-                placeholder="e.g. Tagore Hall"
+                placeholder="Select Hostel Block"
+                options={[
+                  { value: 'Tagore Hall', label: 'Tagore Hall' },
+                  { value: 'Radhakrishnan Hall', label: 'Radhakrishnan Hall' },
+                  { value: 'Nehru Hall', label: 'Nehru Hall' },
+                  { value: 'Patel Hall', label: 'Patel Hall' }
+                ]}
+                required
               />
 
               <Input
@@ -203,6 +214,7 @@ const Landing = () => {
                 value={regRoomNo}
                 onChange={(e) => setRegRoomNo(e.target.value)}
                 placeholder="e.g. B-204"
+                required
               />
             </div>
 

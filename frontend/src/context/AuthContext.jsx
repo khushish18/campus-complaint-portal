@@ -48,12 +48,12 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
-    const socketInstance = io('http://localhost:5000');
-    
-    socketInstance.emit('register', user.id || user._id);
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    const socketInstance = io(socketUrl);
 
     socketInstance.on('connect', () => {
       console.log('Socket connected successfully in AuthContext');
+      socketInstance.emit('register', user.id || user._id);
     });
 
     setSocket(socketInstance);

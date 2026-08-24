@@ -3,9 +3,13 @@ const jwt = require('jsonwebtoken');
 
 // Helper to generate JWT containing only userId and role
 const generateToken = (user) => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET configuration is missing!');
+  }
   return jwt.sign(
     { userId: user._id, role: user.role },
-    process.env.JWT_SECRET || 'your_jwt_secret_key_here_super_secret',
+    secret,
     {
       expiresIn: process.env.JWT_EXPIRE || '24h',
     }
@@ -22,6 +26,17 @@ exports.register = async (req, res, next) => {
     if (!name || !email || !password) {
       res.status(400);
       return next(new Error('Please provide name, email, and password'));
+    }
+
+    if (!hostelBlock || !roomNo) {
+      res.status(400);
+      return next(new Error('Hostel block and room number are required for student registration'));
+    }
+
+    const validBlocks = ['Tagore Hall', 'Radhakrishnan Hall', 'Nehru Hall', 'Patel Hall'];
+    if (!validBlocks.includes(hostelBlock)) {
+      res.status(400);
+      return next(new Error(`Invalid hostel block. Must be one of: ${validBlocks.join(', ')}`));
     }
 
     // Check if user already exists

@@ -10,7 +10,30 @@ const userRoutes = require('./routes/user.routes');
 const app = express();
 
 // Standard middlewares
-app.use(cors());
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  : [];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser requests (e.g., Postman, server-to-server) in development/test
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // In development/test, always allow localhost frontend
+    if (process.env.NODE_ENV !== 'production' && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Blocked by CORS policy (unauthorized origin)'));
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
