@@ -8,6 +8,7 @@ import Table from '../../components/common/Table/Table';
 import Modal from '../../components/common/Modal/Modal';
 import Input from '../../components/common/Input/Input';
 import api from '../../services/api';
+import CommentsSection from '../../components/common/Comments/CommentsSection';
 import { 
   ClipboardList, 
   Clock, 
@@ -414,7 +415,23 @@ const WardenDashboard = () => {
                   SLA: {detailComplaint.slaInfo.status}
                 </Badge>
               )}
+              {detailComplaint.reopenedCount > 0 && (
+                <Badge status="high">Re-opened ({detailComplaint.reopenedCount})</Badge>
+              )}
             </div>
+
+            {/* Reopening reason indicator */}
+            {detailComplaint.reopenedCount > 0 && detailComplaint.reopenedHistory && detailComplaint.reopenedHistory.length > 0 && (
+              <div style={{ backgroundColor: 'var(--danger-light)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid var(--danger)' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--danger-text)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Ticket Reopened Alert</span>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-primary)', fontStyle: 'italic' }}>
+                  "{detailComplaint.reopenedHistory[detailComplaint.reopenedHistory.length - 1].reason}"
+                </p>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem' }}>
+                  Reopened on {new Date(detailComplaint.reopenedHistory[detailComplaint.reopenedHistory.length - 1].reopenedAt).toLocaleString()}
+                </span>
+              </div>
+            )}
 
             {detailComplaint.slaInfo && (
               <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid var(--primary)' }}>
@@ -541,6 +558,12 @@ const WardenDashboard = () => {
                 </div>
               </div>
             )}
+
+            {/* Comments Thread Section */}
+            <CommentsSection
+              complaintId={detailComplaint._id}
+              initialComments={detailComplaint.comments}
+            />
 
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
               <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Update History Log</h5>

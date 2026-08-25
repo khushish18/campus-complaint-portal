@@ -21,6 +21,45 @@ const historySchema = new mongoose.Schema({
   },
 });
 
+const commentSchema = new mongoose.Schema({
+  author: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  text: {
+    type: String,
+    required: [true, 'Comment text cannot be empty'],
+    trim: true,
+    maxlength: [1000, 'Comment text cannot exceed 1000 characters'],
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+const reopenedHistorySchema = new mongoose.Schema({
+  reopenedAt: {
+    type: Date,
+    default: Date.now,
+  },
+  reopenedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  reason: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  previousStatus: {
+    type: String,
+    required: true,
+  },
+});
+
 const complaintSchema = new mongoose.Schema(
   {
     student: {
@@ -85,6 +124,12 @@ const complaintSchema = new mongoose.Schema(
       trim: true,
     },
     history: [historySchema],
+    comments: [commentSchema],
+    reopenedCount: {
+      type: Number,
+      default: 0,
+    },
+    reopenedHistory: [reopenedHistorySchema],
     assignedAt: {
       type: Date,
     },
@@ -118,7 +163,15 @@ complaintSchema.virtual('slaInfo').get(function () {
   const createdAtTime = this.createdAt ? this.createdAt.getTime() : Date.now();
 
   const responseDeadline = new Date(createdAtTime + target.responseHours * 60 * 60 * 1000);
-  const resolutionDeadline = new Date(createdAtTime + target.resolutionHours * 60 * 60 * 1000);
+  
+  let baseTimeForResolution = createdAtTime;
+  if (this.reopenedHistory && this.reopenedHistory.length > 0) {
+    const latestReopen = this.reopenedHistory[this.reopenedHistory.length - 1];
+    if (latestReopen.reopenedAt) {
+      baseTimeForResolution = new Date(latestReopen.reopenedAt).getTime();
+    }
+  }
+  const resolutionDeadline = new Date(baseTimeForResolution + target.resolutionHours * 60 * 60 * 1000);
 
   let status = 'ON_TRACK';
 

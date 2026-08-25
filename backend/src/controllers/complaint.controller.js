@@ -197,7 +197,9 @@ exports.getComplaintById = async (req, res, next) => {
     const complaint = await Complaint.findById(req.params.id)
       .populate('student', 'name email hostelBlock roomNo')
       .populate('assignedTo', 'name email')
-      .populate('history.updatedBy', 'name role');
+      .populate('history.updatedBy', 'name role')
+      .populate('comments.author', 'name role')
+      .populate('reopenedHistory.reopenedBy', 'name role');
 
     if (!complaint) {
       res.status(404);
@@ -462,6 +464,216 @@ exports.submitFeedback = async (req, res, next) => {
     res.json({
       success: true,
       complaint,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Student rejects resolution and reopens complaint
+// @route   PATCH /api/complaints/:id/reopen
+// @access  Private (Student)
+exports.reopenComplaint = async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+      res.status(400);
+      return next(new Error('Please provide a reason for re-opening the complaint'));
+    }
+
+    const complaint = await Complaint.findById(req.params.id).populate('student', 'name email hostelBlock roomNo');
+    if (!complaint) {
+      res.status(404);
+      return next(new Error('Complaint not found'));
+    }
+
+    // Verify authorized Student raiser
+    if (complaint.student._id.toString() !== req.user._id.toString()) {
+      res.status(403);
+      return next(new Error('Not authorized to re-open this complaint'));
+    }
+
+    // State machine check: must be resolved
+    if (complaint.status !== 'resolved') {
+      res.status(400);
+      return next(new Error('Only resolved complaints can be re-opened'));
+    }
+
+    const previousStatus = complaint.status;
+    const targetStatus = complaint.assignedTo ? 'assigned' : 'pending';
+
+    complaint.status = targetStatus;
+    complaint.resolvedAt = undefined; // clear resolved timestamp
+    complaint.reopenedCount += 1;
+    complaint.reopenedHistory.push({
+      reopenedBy: req.user._id,
+      reason: reason.trim(),
+      previousStatus
+    });
+
+    complaint.history.push({
+      status: targetStatus,
+      updatedBy: req.user._id,
+      remarks: `Complaint re-opened by Student. Reason: "${reason.trim()}"`,
+    });
+
+    await complaint.save();
+
+    // Notify assigned staff & wardens via Socket.io
+    try {
+      if (complaint.assignedTo) {
+        notifyUser(complaint.assignedTo.toString(), 'statusUpdate', {
+          complaintId: complaint._id,
+          title: complaint.title,
+          status: targetStatus,
+          remarks: `Complaint re-opened: ${reason.trim()}`
+        });
+      }
+
+      if (complaint.student && complaint.student.hostelBlock) {
+        const wardens = await User.find({ role: 'warden', hostelBlock: complaint.student.hostelBlock }).select('_id');
+        wardens.forEach(warden => {
+          notifyUser(warden._id, 'statusUpdate', {
+            complaintId: complaint._id,
+            title: complaint.title,
+            status: targetStatus,
+            remarks: `Complaint re-opened: ${reason.trim()}`
+          });
+        });
+      }
+    } catch (err) {
+      console.error('Socket notification error in reopenComplaint:', err.message);
+    }
+
+    res.json({
+      success: true,
+      complaint
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Add a comment to complaint discussion thread
+// @route   POST /api/complaints/:id/comments
+// @access  Private (Authorized participants only)
+exports.addComment = async (req, res, next) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || !text.trim()) {
+      res.status(400);
+      return next(new Error('Comment text cannot be empty'));
+    }
+
+    if (text.length > 1000) {
+      res.status(400);
+      return next(new Error('Comment text cannot exceed 1000 characters'));
+    }
+
+    const complaint = await Complaint.findById(req.params.id).populate('student', 'name email hostelBlock roomNo');
+    if (!complaint) {
+      res.status(404);
+      return next(new Error('Complaint not found'));
+    }
+
+    let isAuthorized = false;
+
+    if (req.user.role === 'admin') {
+      isAuthorized = true;
+    } else if (complaint.student._id.toString() === req.user._id.toString()) {
+      isAuthorized = true;
+    } else if (complaint.assignedTo && complaint.assignedTo.toString() === req.user._id.toString()) {
+      isAuthorized = true;
+    } else if (req.user.role === 'warden' && req.user.hostelBlock === complaint.student.hostelBlock) {
+      isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+      res.status(403);
+      return next(new Error('Not authorized to post comments on this complaint'));
+    }
+
+    const commentObj = {
+      author: req.user._id,
+      text: text.trim(),
+      timestamp: new Date()
+    };
+
+    complaint.comments.push(commentObj);
+    await complaint.save();
+
+    const populated = await Complaint.findById(complaint._id)
+      .populate('comments.author', 'name role');
+
+    const newComment = populated.comments[populated.comments.length - 1];
+
+    try {
+      const targets = new Set();
+      targets.add(complaint.student._id.toString());
+      if (complaint.assignedTo) {
+        targets.add(complaint.assignedTo.toString());
+      }
+      if (complaint.student.hostelBlock) {
+        const wardens = await User.find({ role: 'warden', hostelBlock: complaint.student.hostelBlock }).select('_id');
+        wardens.forEach(w => targets.add(w._id.toString()));
+      }
+
+      targets.forEach(userId => {
+        notifyUser(userId, 'newComment', {
+          complaintId: complaint._id,
+          comment: newComment
+        });
+      });
+    } catch (err) {
+      console.error('Socket notification error in addComment:', err.message);
+    }
+
+    res.status(201).json({
+      success: true,
+      comment: newComment
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all comments for a complaint
+// @route   GET /api/complaints/:id/comments
+// @access  Private (Authorized participants only)
+exports.getComments = async (req, res, next) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id)
+      .populate('student', 'name email hostelBlock roomNo')
+      .populate('comments.author', 'name role');
+
+    if (!complaint) {
+      res.status(404);
+      return next(new Error('Complaint not found'));
+    }
+
+    let isAuthorized = false;
+
+    if (req.user.role === 'admin') {
+      isAuthorized = true;
+    } else if (complaint.student._id.toString() === req.user._id.toString()) {
+      isAuthorized = true;
+    } else if (complaint.assignedTo && complaint.assignedTo.toString() === req.user._id.toString()) {
+      isAuthorized = true;
+    } else if (req.user.role === 'warden' && req.user.hostelBlock === complaint.student.hostelBlock) {
+      isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+      res.status(403);
+      return next(new Error('Not authorized to view comments for this complaint'));
+    }
+
+    res.json({
+      success: true,
+      count: complaint.comments.length,
+      comments: complaint.comments
     });
   } catch (error) {
     next(error);

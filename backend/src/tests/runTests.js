@@ -121,6 +121,16 @@ Complaint.countDocuments = async function (query) {
   return mockComplaints.length;
 };
 
+Complaint.deleteOne = async function (query) {
+  if (query && query._id) {
+    const idx = mockComplaints.findIndex(c => c._id.toString() === query._id.toString());
+    if (idx !== -1) {
+      mockComplaints.splice(idx, 1);
+    }
+  }
+  return { deletedCount: 1 };
+};
+
 Complaint.aggregate = async function (pipeline) {
   // Check if overview pipeline
   if (pipeline[0] && pipeline[0].$facet) {
@@ -301,8 +311,109 @@ const run = async () => {
     });
     assert.strictEqual(resolveRes.status, 200);
     assert.ok(newComplaint.resolvedAt);
-    assert.strictEqual(newComplaint.slaInfo.status, 'COMPLETED_WITHIN_SLA');
+    const retrievedResolved = await Complaint.findById(newComplaint._id);
+    assert.strictEqual(retrievedResolved.slaInfo.status, 'COMPLETED_WITHIN_SLA');
     console.log('   - resolvedAt logged & SLA status computed as COMPLETED_WITHIN_SLA.');
+
+    // --- PHASE 7 TESTING STARTED ---
+    console.log('🚨 Phase 7: Testing Comments & Re-opening Flows...');
+
+    // 1. Reopen Validation - Missing Reason (400)
+    const reopenNoReason = await apiRequest(`/complaints/${newComplaint._id}/reopen`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${tokens.student}` },
+      body: JSON.stringify({ reason: '' })
+    });
+    assert.strictEqual(reopenNoReason.status, 400);
+    console.log('   - Rejected reopen with empty reason correctly.');
+
+    // 2. Reopen Validation - Unauthorized User (403)
+    const reopenStaff = await apiRequest(`/complaints/${newComplaint._id}/reopen`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${tokens.staff}` },
+      body: JSON.stringify({ reason: 'Reopened by unauthorized staff' })
+    });
+    assert.strictEqual(reopenStaff.status, 403);
+    console.log('   - Rejected unauthorized reopen attempt correctly.');
+
+    // 3. Successful Reopen (200)
+    const reopenRes = await apiRequest(`/complaints/${newComplaint._id}/reopen`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${tokens.student}` },
+      body: JSON.stringify({ reason: 'Plumbing leak is still dripping!' })
+    });
+    assert.strictEqual(reopenRes.status, 200);
+    
+    // Refresh newComplaint mock state
+    assert.strictEqual(newComplaint.status, 'assigned');
+    assert.strictEqual(newComplaint.resolvedAt, undefined);
+    assert.strictEqual(newComplaint.reopenedCount, 1);
+    assert.strictEqual(newComplaint.reopenedHistory.length, 1);
+    assert.strictEqual(newComplaint.reopenedHistory[0].reason, 'Plumbing leak is still dripping!');
+    console.log('   - Reopened successfully. Status back to assigned. Counter is 1.');
+
+    // 4. SLA Recalculation Assertion
+    const latestReopenDate = new Date(newComplaint.reopenedHistory[0].reopenedAt).getTime();
+    const expectedDeadline = new Date(latestReopenDate + 24 * 60 * 60 * 1000).toDateString(); // High priority resolution limit is 24h
+    assert.strictEqual(new Date(newComplaint.slaInfo.resolutionDeadline).toDateString(), expectedDeadline);
+    console.log('   - Reopened SLA resolution deadline correctly calculated from reopenedAt.');
+
+    // 5. Discussion Comments - Authorized Student post
+    const commentStud = await apiRequest(`/complaints/${newComplaint._id}/comments`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.student}` },
+      body: JSON.stringify({ text: 'Is anyone coming to check this?' })
+    });
+    assert.strictEqual(commentStud.status, 201);
+    assert.strictEqual(newComplaint.comments.length, 1);
+    assert.strictEqual(newComplaint.comments[0].text, 'Is anyone coming to check this?');
+    console.log('   - Authorized Student comment posted successfully.');
+
+    // 6. Discussion Comments - Authorized Staff post
+    const commentStaff = await apiRequest(`/complaints/${newComplaint._id}/comments`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.staff}` },
+      body: JSON.stringify({ text: 'On my way in 10 minutes.' })
+    });
+    assert.strictEqual(commentStaff.status, 201);
+    assert.strictEqual(newComplaint.comments.length, 2);
+    console.log('   - Authorized Staff comment posted successfully.');
+
+    // 7. Discussion Comments - Unauthorized post (returns 403)
+    const otherComplaint = await Complaint.create({
+      student: new mongoose.Types.ObjectId(), // completely different student
+      title: 'OTHER TICKET',
+      category: 'electrical',
+      urgency: 'low',
+      status: 'pending'
+    });
+    const commentUnauth = await apiRequest(`/complaints/${otherComplaint._id}/comments`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.student}` },
+      body: JSON.stringify({ text: 'I am hijacking this thread.' })
+    });
+    assert.strictEqual(commentUnauth.status, 403);
+    console.log('   - Denied unauthorized comment attempt correctly.');
+    await Complaint.deleteOne({ _id: otherComplaint._id });
+
+    // 8. Retrieve Comments (200)
+    const getCommentsRes = await apiRequest(`/complaints/${newComplaint._id}/comments`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${tokens.student}` }
+    });
+    assert.strictEqual(getCommentsRes.status, 200);
+    assert.strictEqual(getCommentsRes.data.comments.length, 2);
+    console.log('   - Comment retrieval permissions validated successfully.');
+
+    // Resolve complaint again
+    const resolveRes2 = await apiRequest(`/complaints/${newComplaint._id}/status`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${tokens.staff}` },
+      body: JSON.stringify({ status: 'resolved', remarks: 'leak fixed completely' })
+    });
+    assert.strictEqual(resolveRes2.status, 200);
+    assert.ok(newComplaint.resolvedAt);
+    console.log('   - Resolved ticket again.');
 
     // Close complaint (submit feedback)
     const feedbackRes = await apiRequest(`/complaints/${newComplaint._id}/feedback`, {
@@ -314,6 +425,15 @@ const run = async () => {
     assert.ok(newComplaint.closedAt);
     assert.strictEqual(newComplaint.status, 'closed');
     console.log('   - closedAt logged & status closed.');
+
+    // 9. Reopen Validation - Reopening closed ticket (400)
+    const reopenClosed = await apiRequest(`/complaints/${newComplaint._id}/reopen`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${tokens.student}` },
+      body: JSON.stringify({ reason: 'Reopening closed ticket' })
+    });
+    assert.strictEqual(reopenClosed.status, 400);
+    console.log('   - Rejected re-opening of a closed complaint correctly.');
 
     // 5. Test Analytics Aggregation pipeline outputs (Requirements 5, 9, 10)
     console.log('📊 Testing Admin Analytics pipelines & counts verification...');

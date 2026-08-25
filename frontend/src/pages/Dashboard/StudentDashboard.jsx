@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import CommentsSection from '../../components/common/Comments/CommentsSection';
 import Card from '../../components/common/Card/Card';
 import Button from '../../components/common/Button/Button';
 import Badge from '../../components/common/Badge/Badge';
@@ -50,6 +51,34 @@ const StudentDashboard = () => {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackTab, setFeedbackTab] = useState('close');
+  const [reopenReason, setReopenReason] = useState('');
+  const [submittingReopen, setSubmittingReopen] = useState(false);
+
+  const handleReopenSubmit = async (e) => {
+    e.preventDefault();
+    if (!reopenReason.trim()) {
+      return toast.error('Please state the reason for re-opening.');
+    }
+
+    setSubmittingReopen(true);
+    try {
+      const response = await api.patch(`/complaints/${selectedComplaint._id}/reopen`, {
+        reason: reopenReason.trim()
+      });
+      if (response.success) {
+        toast.success('Complaint re-opened successfully and returned to queue!');
+        setReopenReason('');
+        setFeedbackTab('close');
+        setIsDetailModalOpen(false);
+        await fetchComplaints();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to re-open complaint.');
+    } finally {
+      setSubmittingReopen(false);
+    }
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -542,6 +571,9 @@ const StudentDashboard = () => {
                   {selectedComplaint.slaInfo.status === 'OVERDUE' || selectedComplaint.slaInfo.status === 'AT_RISK' ? 'Progress: Prioritized' : 'Progress: On Track'}
                 </Badge>
               )}
+              {selectedComplaint.reopenedCount > 0 && (
+                <Badge status="high">Re-opened ({selectedComplaint.reopenedCount})</Badge>
+              )}
             </div>
 
             <div>
@@ -644,6 +676,12 @@ const StudentDashboard = () => {
               </div>
             </div>
 
+            {/* Comments Thread Section */}
+            <CommentsSection
+              complaintId={selectedComplaint._id}
+              initialComments={selectedComplaint.comments}
+            />
+
             {/* Timeline history */}
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
               <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Update History Log</h5>
@@ -667,60 +705,107 @@ const StudentDashboard = () => {
               </div>
             </div>
 
-            {/* Student Feedback Form for Resolution closure */}
+            {/* Student Feedback or Reject Re-open Form */}
             {selectedComplaint.status === 'resolved' && (
-              <form onSubmit={handleFeedbackSubmit} style={{ borderTop: '2px dashed var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                <h4 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  <Star size={18} style={{ color: 'var(--warning)' }} />
-                  Close Complaint & Submit Feedback
-                </h4>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem' }}>
-                      Overall Rating (1 - 5 Stars)
-                    </label>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setFeedbackRating(star)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            color: star <= feedbackRating ? 'var(--warning)' : 'var(--text-muted)',
-                            padding: 0
-                          }}
-                        >
-                          <Star size={24} fill={star <= feedbackRating ? 'var(--warning)' : 'none'} />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Input
-                    label="Remarks / Feedback Comments"
-                    type="textarea"
-                    name="feedbackComment"
-                    value={feedbackComment}
-                    onChange={(e) => setFeedbackComment(e.target.value)}
-                    placeholder="Let us know if you are satisfied with the service and resolution..."
-                    disabled={submittingFeedback}
-                  />
-
-                  <Button
-                    variant="primary"
-                    type="submit"
-                    loading={submittingFeedback}
-                    disabled={submittingFeedback}
-                    style={{ width: '100%', marginTop: '0.5rem' }}
+              <div style={{ borderTop: '2px dashed var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <Button 
+                    variant={feedbackTab === 'close' ? 'primary' : 'outline'} 
+                    size="sm" 
+                    onClick={() => setFeedbackTab('close')}
                   >
-                    Resolve & Close Ticket
+                    Accept & Close
+                  </Button>
+                  <Button 
+                    variant={feedbackTab === 'reopen' ? 'primary' : 'outline'} 
+                    size="sm" 
+                    style={feedbackTab === 'reopen' ? { backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' } : {}}
+                    onClick={() => setFeedbackTab('reopen')}
+                  >
+                    Reject & Re-open
                   </Button>
                 </div>
-              </form>
+
+                {feedbackTab === 'close' ? (
+                  <form onSubmit={handleFeedbackSubmit}>
+                    <h4 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <Star size={18} style={{ color: 'var(--warning)' }} />
+                      Close Complaint & Submit Feedback
+                    </h4>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem' }}>
+                          Overall Rating (1 - 5 Stars)
+                        </label>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setFeedbackRating(star)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: star <= feedbackRating ? 'var(--warning)' : 'var(--text-muted)',
+                                padding: 0
+                              }}
+                            >
+                              <Star size={24} fill={star <= feedbackRating ? 'var(--warning)' : 'none'} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <Input
+                        label="Remarks / Feedback Comments"
+                        type="textarea"
+                        name="feedbackComment"
+                        value={feedbackComment}
+                        onChange={(e) => setFeedbackComment(e.target.value)}
+                        placeholder="Let us know if you are satisfied with the service and resolution..."
+                        disabled={submittingFeedback}
+                      />
+
+                      <Button
+                        variant="primary"
+                        type="submit"
+                        loading={submittingFeedback}
+                        disabled={submittingFeedback}
+                        style={{ width: '100%', marginTop: '0.5rem' }}
+                      >
+                        Resolve & Close Ticket
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={handleReopenSubmit}>
+                    <h4 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+                      State Reopening Reason
+                    </h4>
+                    <Input
+                      label="Why is the issue still unresolved? (Required)"
+                      type="textarea"
+                      name="reopenReason"
+                      value={reopenReason}
+                      onChange={(e) => setReopenReason(e.target.value)}
+                      placeholder="Please specify what work is incomplete or what parts are still faulty..."
+                      required
+                      disabled={submittingReopen}
+                    />
+                    <Button
+                      variant="primary"
+                      type="submit"
+                      loading={submittingReopen}
+                      disabled={submittingReopen || !reopenReason.trim()}
+                      style={{ width: '100%', marginTop: '0.5rem', backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}
+                    >
+                      Confirm Re-open Complaint
+                    </Button>
+                  </form>
+                )}
+              </div>
             )}
 
             {/* Closed Ticket Feedback Display */}
