@@ -262,6 +262,9 @@ exports.assignComplaint = async (req, res, next) => {
 
     complaint.assignedTo = staffId;
     complaint.status = 'assigned';
+    if (!complaint.assignedAt) {
+      complaint.assignedAt = Date.now();
+    }
     complaint.history.push({
       status: 'assigned',
       updatedBy: req.user._id,
@@ -339,6 +342,9 @@ exports.updateComplaintStatus = async (req, res, next) => {
     }
 
     complaint.status = status;
+    if (status === 'resolved') {
+      complaint.resolvedAt = Date.now();
+    }
     complaint.history.push({
       status,
       updatedBy: req.user._id,
@@ -417,6 +423,7 @@ exports.submitFeedback = async (req, res, next) => {
     }
 
     complaint.status = 'closed';
+    complaint.closedAt = Date.now();
     complaint.feedbackRating = rating;
     complaint.feedbackComment = comment || '';
     complaint.history.push({

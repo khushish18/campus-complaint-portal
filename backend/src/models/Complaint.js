@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const SLA_CONFIG = require('../config/slaConfig');
 
 const historySchema = new mongoose.Schema({
   status: {
@@ -84,10 +85,72 @@ const complaintSchema = new mongoose.Schema(
       trim: true,
     },
     history: [historySchema],
+    assignedAt: {
+      type: Date,
+    },
+    resolvedAt: {
+      type: Date,
+    },
+    closedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+// Indexes for optimized analytics queries
+complaintSchema.index({ status: 1 });
+complaintSchema.index({ category: 1 });
+complaintSchema.index({ urgency: 1 });
+complaintSchema.index({ assignedTo: 1 });
+complaintSchema.index({ createdAt: -1 });
+complaintSchema.index({ resolvedAt: -1 });
+complaintSchema.index({ closedAt: -1 });
+
+// Virtual field for dynamic SLA information
+complaintSchema.virtual('slaInfo').get(function () {
+  const urgency = this.urgency || 'medium';
+  const target = SLA_CONFIG.targets[urgency] || SLA_CONFIG.targets.medium;
+  const createdAtTime = this.createdAt ? this.createdAt.getTime() : Date.now();
+
+  const responseDeadline = new Date(createdAtTime + target.responseHours * 60 * 60 * 1000);
+  const resolutionDeadline = new Date(createdAtTime + target.resolutionHours * 60 * 60 * 1000);
+
+  let status = 'ON_TRACK';
+
+  if (['resolved', 'closed'].includes(this.status)) {
+    const resolvedTime = this.resolvedAt ? this.resolvedAt.getTime() : (this.updatedAt ? this.updatedAt.getTime() : Date.now());
+    if (resolvedTime <= resolutionDeadline.getTime()) {
+      status = 'COMPLETED_WITHIN_SLA';
+    } else {
+      status = 'COMPLETED_LATE';
+    }
+  } else {
+    const now = Date.now();
+    if (now > resolutionDeadline.getTime()) {
+      status = 'OVERDUE';
+    } else {
+      const timeRemaining = resolutionDeadline.getTime() - now;
+      const totalTime = target.resolutionHours * 60 * 60 * 1000;
+      if (timeRemaining / totalTime <= SLA_CONFIG.riskThresholdPercent / 100) {
+        status = 'AT_RISK';
+      }
+    }
+  }
+
+  return {
+    urgency,
+    responseDeadline,
+    resolutionDeadline,
+    status,
+    timeRemainingMs: Math.max(0, resolutionDeadline.getTime() - Date.now()),
+    resolutionTargetHours: target.resolutionHours,
+    responseTargetHours: target.responseHours,
+  };
+});
 
 module.exports = mongoose.model('Complaint', complaintSchema);

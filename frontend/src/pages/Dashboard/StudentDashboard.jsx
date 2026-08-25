@@ -537,6 +537,11 @@ const StudentDashboard = () => {
               <Badge status={selectedComplaint.status}>{selectedComplaint.status}</Badge>
               <Badge status={selectedComplaint.urgency}>{selectedComplaint.urgency} Priority</Badge>
               <Badge status="other">{selectedComplaint.category}</Badge>
+              {selectedComplaint.status !== 'closed' && selectedComplaint.status !== 'resolved' && selectedComplaint.slaInfo && (
+                <Badge status={selectedComplaint.slaInfo.status === 'OVERDUE' || selectedComplaint.slaInfo.status === 'AT_RISK' ? 'medium' : 'low'}>
+                  {selectedComplaint.slaInfo.status === 'OVERDUE' || selectedComplaint.slaInfo.status === 'AT_RISK' ? 'Progress: Prioritized' : 'Progress: On Track'}
+                </Badge>
+              )}
             </div>
 
             <div>

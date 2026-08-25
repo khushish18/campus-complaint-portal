@@ -44,7 +44,23 @@ const StaffDashboard = () => {
       setLoading(true);
       setError(null);
       const response = await api.get('/complaints');
-      setJobs(response.complaints || []);
+      let sortedJobs = response.complaints || [];
+      sortedJobs.sort((a, b) => {
+        const aActive = ['assigned', 'in-progress'].includes(a.status);
+        const bActive = ['assigned', 'in-progress'].includes(b.status);
+
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
+
+        if (aActive && bActive) {
+          const aTime = a.slaInfo?.timeRemainingMs ?? Infinity;
+          const bTime = b.slaInfo?.timeRemainingMs ?? Infinity;
+          return aTime - bTime;
+        }
+
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+      });
+      setJobs(sortedJobs);
     } catch (err) {
       setError(err.message || 'Failed to fetch assigned jobs.');
       toast.error(err.message || 'Failed to fetch assigned jobs.');
@@ -168,6 +184,32 @@ const StaffDashboard = () => {
       header: 'Urgency',
       key: 'urgency',
       render: (row) => <Badge status={row.urgency}>{row.urgency}</Badge>
+    },
+    {
+      header: 'SLA Deadline',
+      key: 'slaDeadline',
+      render: (row) => {
+        const sla = row.slaInfo;
+        if (!sla) return <Badge status="low">ON_TRACK</Badge>;
+        
+        let badgeType = 'low';
+        if (sla.status === 'OVERDUE' || sla.status === 'COMPLETED_LATE') badgeType = 'high';
+        else if (sla.status === 'AT_RISK') badgeType = 'medium';
+
+        const hoursRemaining = (sla.timeRemainingMs / (1000 * 60 * 60)).toFixed(1);
+        const subtext = ['resolved', 'closed'].includes(row.status)
+          ? ''
+          : sla.status === 'OVERDUE'
+            ? 'Expired'
+            : `${hoursRemaining}h remaining`;
+
+        return (
+          <div>
+            <Badge status={badgeType}>{sla.status}</Badge>
+            {subtext && <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{subtext}</span>}
+          </div>
+        );
+      }
     },
     {
       header: 'Current Status',
@@ -369,7 +411,32 @@ const StaffDashboard = () => {
               <Badge status={detailComplaint.status}>{detailComplaint.status}</Badge>
               <Badge status={detailComplaint.urgency}>{detailComplaint.urgency} Priority</Badge>
               <Badge status="other">{detailComplaint.category}</Badge>
+              {detailComplaint.slaInfo && (
+                <Badge status={detailComplaint.slaInfo.status === 'OVERDUE' || detailComplaint.slaInfo.status === 'COMPLETED_LATE' ? 'high' : detailComplaint.slaInfo.status === 'AT_RISK' ? 'medium' : 'low'}>
+                  SLA: {detailComplaint.slaInfo.status}
+                </Badge>
+              )}
             </div>
+
+            {detailComplaint.slaInfo && (
+              <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid var(--primary)' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>SLA Deadlines</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.4rem', fontSize: '0.825rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>First-Response Limit:</span>
+                    <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
+                      {new Date(detailComplaint.slaInfo.responseDeadline).toLocaleString()}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Resolution Limit:</span>
+                    <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
+                      {new Date(detailComplaint.slaInfo.resolutionDeadline).toLocaleString()}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div style={{ borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: '0.75rem 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>

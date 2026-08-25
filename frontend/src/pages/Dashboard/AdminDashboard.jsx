@@ -1,26 +1,59 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Card from '../../components/common/Card/Card';
 import Badge from '../../components/common/Badge/Badge';
 import Table from '../../components/common/Table/Table';
 import Modal from '../../components/common/Modal/Modal';
 import Button from '../../components/common/Button/Button';
+import Input from '../../components/common/Input/Input';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { DoughnutChart, BarChart, LineChart } from '../../components/common/Charts/Charts';
 import { 
   Users, 
   ShieldCheck, 
   Terminal,
   Activity,
   FileText,
-  Eye
+  Eye,
+  Clock,
+  Star,
+  AlertTriangle,
+  Award,
+  BarChart3,
+  Layers,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { socket } = useAuth();
+  const location = useLocation();
+  const activePath = location.pathname;
+
+  // General Overview Stats
   const [stats, setStats] = useState(null);
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // User Directory State
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
+
+  // Analytics States
+  const [analyticsOverview, setAnalyticsOverview] = useState(null);
+  const [categoryAnalytics, setCategoryAnalytics] = useState([]);
+  const [hostelAnalytics, setHostelAnalytics] = useState([]);
+  const [problematicCombos, setProblematicCombos] = useState([]);
+  const [staffWorkload, setStaffWorkload] = useState([]);
+  const [trendsData, setTrendsData] = useState([]);
+  const [trendsRange, setTrendsRange] = useState('daily');
+  const [overdueComplaints, setOverdueComplaints] = useState([]);
+  const [overduePage, setOverduePage] = useState(1);
+  const [overdueTotalPages, setOverdueTotalPages] = useState(1);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   // Detail Modal State
   const [detailComplaint, setDetailComplaint] = useState(null);
@@ -35,6 +68,49 @@ const AdminDashboard = () => {
   const fetchComplaints = async () => {
     const response = await api.get('/complaints');
     setComplaints(response.complaints || []);
+  };
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const response = await api.get('/users');
+      setUsers(response.users || []);
+    } catch (err) {
+      console.error('Failed to load user directory:', err.message);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    try {
+      setLoadingAnalytics(true);
+      const [overviewRes, catRes, hostelRes, staffRes, trendsRes, overdueRes] = await Promise.all([
+        api.get('/admin/analytics/overview'),
+        api.get('/admin/analytics/categories'),
+        api.get('/admin/analytics/hostels'),
+        api.get('/admin/analytics/staff'),
+        api.get(`/admin/analytics/trends?range=${trendsRange}`),
+        api.get(`/admin/sla/overdue?page=${overduePage}`)
+      ]);
+
+      if (overviewRes.success) setAnalyticsOverview(overviewRes.data);
+      if (catRes.success) setCategoryAnalytics(catRes.categories);
+      if (hostelRes.success) {
+        setHostelAnalytics(hostelRes.hostels);
+        setProblematicCombos(hostelRes.problematicCombos);
+      }
+      if (staffRes.success) setStaffWorkload(staffRes.staff);
+      if (trendsRes.success) setTrendsData(trendsRes.trends);
+      if (overdueRes.success) {
+        setOverdueComplaints(overdueRes.complaints);
+        setOverdueTotalPages(overdueRes.pages);
+      }
+    } catch (err) {
+      console.error('Failed to load admin analytics:', err.message);
+    } finally {
+      setLoadingAnalytics(false);
+    }
   };
 
   const refreshDetailSilently = async (complaintId) => {
@@ -73,11 +149,24 @@ const AdminDashboard = () => {
   }, []);
 
   useEffect(() => {
+    if (activePath === '/admin/users') {
+      fetchUsers();
+    } else if (activePath === '/admin/analytics') {
+      fetchAnalytics();
+    }
+  }, [activePath, trendsRange, overduePage]);
+
+  useEffect(() => {
     if (!socket) return;
 
     const handleSocketEvent = (data) => {
       fetchStats();
       fetchComplaints();
+      if (activePath === '/admin/users') {
+        fetchUsers();
+      } else if (activePath === '/admin/analytics') {
+        fetchAnalytics();
+      }
       if (detailComplaint && detailComplaint._id === data.complaintId) {
         refreshDetailSilently(data.complaintId);
       }
@@ -94,7 +183,7 @@ const AdminDashboard = () => {
       socket.off('statusUpdate', handleSocketEvent);
       socket.off('complaintClosed', handleSocketEvent);
     };
-  }, [socket, detailComplaint]);
+  }, [socket, detailComplaint, activePath, trendsRange, overduePage]);
 
   const handleOpenDetailModal = async (complaintId) => {
     setIsDetailModalOpen(true);
@@ -111,24 +200,10 @@ const AdminDashboard = () => {
     }
   };
 
-  // Calculate sum of complaints
-  const totalComplaintsCount = stats
-    ? Object.values(stats.complaints).reduce((a, b) => a + b, 0)
-    : complaints.length;
-
-  const USER_BREAKDOWNS = stats ? [
-    { role: 'Student Users', count: stats.users.student, status: 'Active' },
-    { role: 'Hostel Wardens', count: stats.users.warden, status: 'Active' },
-    { role: 'Maintenance Staff', count: stats.users.staff, status: 'Active' },
-    { role: 'Platform Admins', count: 1, status: 'Active' }
-  ] : [
-    { role: 'Student Users', count: 0, status: 'Active' },
-    { role: 'Hostel Wardens', count: 0, status: 'Active' },
-    { role: 'Maintenance Staff', count: 0, status: 'Active' },
-    { role: 'Platform Admins', count: 1, status: 'Active' }
-  ];
-
-  const columns = [
+  // ----------------------------------------------------
+  // Columns Definitions
+  // ----------------------------------------------------
+  const overviewColumns = [
     {
       header: 'Complaint Details',
       key: 'title',
@@ -156,6 +231,14 @@ const AdminDashboard = () => {
       render: (row) => <Badge status={row.urgency}>{row.urgency}</Badge>
     },
     {
+      header: 'SLA Status',
+      key: 'slaStatus',
+      render: (row) => {
+        const sla = row.slaInfo;
+        return <Badge status={sla?.status === 'OVERDUE' || sla?.status === 'COMPLETED_LATE' ? 'high' : sla?.status === 'AT_RISK' ? 'medium' : 'low'}>{sla?.status || 'ON_TRACK'}</Badge>;
+      }
+    },
+    {
       header: 'Status',
       key: 'status',
       render: (row) => <Badge status={row.status}>{row.status}</Badge>
@@ -170,6 +253,125 @@ const AdminDashboard = () => {
       )
     }
   ];
+
+  const userColumns = [
+    {
+      header: 'Profile Name',
+      key: 'name',
+      render: (row) => (
+        <div>
+          <strong style={{ display: 'block', color: 'var(--text-primary)' }}>{row.name}</strong>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{row.email}</span>
+        </div>
+      )
+    },
+    {
+      header: 'Security Role',
+      key: 'role',
+      render: (row) => {
+        const badgeColors = {
+          admin: 'high',
+          warden: 'medium',
+          staff: 'other',
+          student: 'low'
+        };
+        return <Badge status={badgeColors[row.role]}>{row.role}</Badge>;
+      }
+    },
+    {
+      header: 'Assigned Wing / Room',
+      key: 'wing',
+      render: (row) => (
+        <span style={{ fontSize: '0.875rem' }}>
+          {row.role === 'student' ? `${row.hostelBlock || 'N/A'} (Rm: ${row.roomNo || 'N/A'})` : row.role === 'warden' ? `${row.hostelBlock || 'N/A'} Wing` : 'Campus-wide'}
+        </span>
+      )
+    },
+    {
+      header: 'Account Status',
+      key: 'isActive',
+      render: (row) => (
+        <Badge status={row.isActive ? 'low' : 'high'}>
+          {row.isActive ? 'Active' : 'Deactivated'}
+        </Badge>
+      )
+    }
+  ];
+
+  const staffColumns = [
+    {
+      header: 'Crew Member',
+      key: 'name',
+      render: (row) => (
+        <div>
+          <strong style={{ display: 'block', color: 'var(--text-primary)' }}>{row.name}</strong>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{row.email}</span>
+        </div>
+      )
+    },
+    {
+      header: 'Assigned Jobs',
+      key: 'assignedCount',
+      render: (row) => <span style={{ fontWeight: 700 }}>{row.assignedCount}</span>
+    },
+    {
+      header: 'Active Tasks',
+      key: 'activeCount',
+      render: (row) => <Badge status={row.activeCount > 0 ? 'medium' : 'low'}>{row.activeCount} active</Badge>
+    },
+    {
+      header: 'Completed',
+      key: 'completedCount',
+      render: (row) => <span style={{ color: 'var(--success)', fontWeight: 700 }}>{row.completedCount}</span>
+    },
+    {
+      header: 'Overdue Jobs',
+      key: 'overdueCount',
+      render: (row) => (
+        <Badge status={row.overdueCount > 0 ? 'high' : 'low'}>
+          {row.overdueCount} overdue
+        </Badge>
+      )
+    },
+    {
+      header: 'Average Rating',
+      key: 'avgRating',
+      render: (row) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <Star size={14} fill={row.avgRating ? 'var(--warning)' : 'none'} color="var(--warning)" />
+          <span style={{ fontWeight: 700 }}>{row.avgRating || 'N/A'}</span>
+        </div>
+      )
+    },
+    {
+      header: 'Resolution Time',
+      key: 'avgResolutionTimeHours',
+      render: (row) => (
+        <span style={{ fontWeight: 600 }}>
+          {row.avgResolutionTimeHours ? `${row.avgResolutionTimeHours} hrs` : 'N/A'}
+        </span>
+      )
+    }
+  ];
+
+  // ----------------------------------------------------
+  // Filtered Users List
+  // ----------------------------------------------------
+  const filteredUsers = users.filter(u => {
+    if (userRoleFilter === 'all') return true;
+    return u.role === userRoleFilter;
+  });
+
+  const totalComplaintsCount = stats
+    ? Object.values(stats.complaints).reduce((a, b) => a + b, 0)
+    : complaints.length;
+
+  const USER_BREAKDOWNS = stats ? [
+    { role: 'Student Users', count: stats.users.student, status: 'Active' },
+    { role: 'Hostel Wardens', count: stats.users.warden, status: 'Active' },
+    { role: 'Maintenance Staff', count: stats.users.staff, status: 'Active' },
+    { role: 'Platform Admins', count: 1, status: 'Active' }
+  ] : [];
 
   return (
     <div className="dashboard-root" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -194,109 +396,331 @@ const AdminDashboard = () => {
           </div>
           <div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Admin Operations Console</h2>
-            <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>System Metrics & Platform Configuration</p>
+            <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>
+              {activePath === '/admin/analytics' ? 'System Reports & Performance Analytics' : activePath === '/admin/users' ? 'User Identity & Directory Management' : 'System Metrics & Platform Configuration'}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="dashboard-grid">
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
-              <Users size={24} />
-            </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Users</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>
-                {stats ? stats.users.total : '...'}
-              </h4>
-            </div>
+      {/* ----------------------------------------------------
+          TAB 1: SYSTEM OVERVIEW (Default `/admin`)
+          ---------------------------------------------------- */}
+      {activePath === '/admin' && (
+        <>
+          <div className="dashboard-grid">
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
+                  <Users size={24} />
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Users</span>
+                  <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>
+                    {stats ? stats.users.total : '...'}
+                  </h4>
+                </div>
+              </div>
+            </Card>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.75rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
+                  <FileText size={24} />
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Complaints</span>
+                  <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>
+                    {totalComplaintsCount}
+                  </h4>
+                </div>
+              </div>
+            </Card>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.75rem', backgroundColor: 'var(--info-light)', borderRadius: 'var(--radius-md)', color: 'var(--info)' }}>
+                  <Activity size={24} />
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Dispatch Rate</span>
+                  <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>98.6%</h4>
+                </div>
+              </div>
+            </Card>
           </div>
-        </Card>
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
-              <FileText size={24} />
-            </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Complaints</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>
-                {totalComplaintsCount}
-              </h4>
-            </div>
-          </div>
-        </Card>
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--info-light)', borderRadius: 'var(--radius-md)', color: 'var(--info)' }}>
-              <Activity size={24} />
-            </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Dispatch Rate</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>98.6%</h4>
-            </div>
-          </div>
-        </Card>
-      </div>
 
-      {/* Main Grid split layout */}
-      <div className="main-content-layout">
-        
-        {/* Live Complaint Monitoring Stream */}
-        <Card title="Live Complaint System Event Stream" extra={<Terminal size={18} style={{ color: 'var(--text-muted)' }} />}>
-          {loading ? (
-            <div className="skeleton-container" style={{ padding: '1rem' }}>
-              <div className="skeleton-row">
-                <div className="skeleton-item title"></div>
-                <div className="skeleton-item badge" style={{ marginLeft: 'auto' }}></div>
+          <div className="main-content-layout">
+            <Card title="Live Complaint System Event Stream" extra={<Terminal size={18} style={{ color: 'var(--text-muted)' }} />}>
+              {loading ? (
+                <div className="skeleton-container" style={{ padding: '1rem' }}>
+                  <div className="skeleton-item title"></div>
+                  <div className="skeleton-item text" style={{ width: '85%' }}></div>
+                </div>
+              ) : error ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger)' }}>
+                  <p style={{ marginBottom: '1rem', fontWeight: 600 }}>{error}</p>
+                  <Button variant="outline" size="sm" onClick={loadData}>Retry Connection</Button>
+                </div>
+              ) : (
+                <Table 
+                  columns={overviewColumns} 
+                  data={complaints} 
+                  emptyMessage="No complaints recorded in the system."
+                />
+              )}
+            </Card>
+
+            <Card title="User Database Directory">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
+                {USER_BREAKDOWNS.map((item, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.75rem 1rem',
+                    backgroundColor: 'var(--bg-secondary)',
+                    borderRadius: 'var(--radius-md)'
+                  }}>
+                    <div>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{item.role}</span>
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--success)' }}>● {item.status}</span>
+                    </div>
+                    <h5 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>{item.count}</h5>
+                  </div>
+                ))}
               </div>
-              <div className="skeleton-item text"></div>
-              <div className="skeleton-item text" style={{ width: '85%' }}></div>
-              <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '0.75rem 0' }} />
-              <div className="skeleton-row">
-                <div className="skeleton-item title" style={{ width: '30%' }}></div>
-                <div className="skeleton-item badge" style={{ marginLeft: 'auto' }}></div>
-              </div>
-              <div className="skeleton-item text" style={{ width: '90%' }}></div>
+            </Card>
+          </div>
+        </>
+      )}
+
+      {/* ----------------------------------------------------
+          TAB 2: USER DIRECTORY (`/admin/users`)
+          ---------------------------------------------------- */}
+      {activePath === '/admin/users' && (
+        <Card title="System User Directory">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {['all', 'student', 'warden', 'staff', 'admin'].map((role) => (
+                <Button
+                  key={role}
+                  variant={userRoleFilter === role ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => setUserRoleFilter(role)}
+                  style={{ textTransform: 'capitalize' }}
+                >
+                  {role === 'all' ? 'All Roles' : role}
+                </Button>
+              ))}
             </div>
-          ) : error ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger)' }}>
-              <p style={{ marginBottom: '1rem', fontWeight: 600 }}>{error}</p>
-              <Button variant="outline" size="sm" onClick={loadData}>Retry Connection</Button>
-            </div>
+          </div>
+          {loadingUsers ? (
+            <div style={{ padding: '2rem', color: 'var(--text-secondary)' }}>Loading user directory...</div>
           ) : (
-            <Table 
-              columns={columns} 
-              data={complaints} 
-              emptyMessage="No complaints recorded in the system."
+            <Table
+              columns={userColumns}
+              data={filteredUsers}
+              emptyMessage="No profiles found matching the criteria."
             />
           )}
         </Card>
+      )}
 
-        {/* User Breakdown statistics card */}
-        <Card title="User Database Directory">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
-            {USER_BREAKDOWNS.map((item, idx) => (
-              <div key={idx} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 1rem',
-                backgroundColor: 'var(--bg-secondary)',
-                borderRadius: 'var(--radius-md)'
-              }}>
-                <div>
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{item.role}</span>
-                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--success)' }}>● {item.status}</span>
+      {/* ----------------------------------------------------
+          TAB 3: REPORTS & ANALYTICS (`/admin/analytics`)
+          ---------------------------------------------------- */}
+      {activePath === '/admin/analytics' && (
+        <>
+          {/* Overview Performance Metrics */}
+          <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.6rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
+                  <Clock size={20} />
                 </div>
-                <h5 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>{item.count}</h5>
+                <div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>AVG RESPONSE</span>
+                  <h4 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                    {analyticsOverview ? `${analyticsOverview.avgResponseTimeHours} hrs` : '...'}
+                  </h4>
+                </div>
               </div>
-            ))}
+            </Card>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.6rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
+                  <Activity size={20} />
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>AVG RESOLUTION</span>
+                  <h4 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                    {analyticsOverview ? `${analyticsOverview.avgResolutionTimeHours} hrs` : '...'}
+                  </h4>
+                </div>
+              </div>
+            </Card>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.6rem', backgroundColor: 'var(--info-light)', borderRadius: 'var(--radius-md)', color: 'var(--info)' }}>
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>SLA COMPLIANCE</span>
+                  <h4 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                    {analyticsOverview ? `${analyticsOverview.slaComplianceRate}%` : '...'}
+                  </h4>
+                </div>
+              </div>
+            </Card>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.6rem', backgroundColor: 'var(--warning-light)', borderRadius: 'var(--radius-md)', color: 'var(--warning)' }}>
+                  <Star size={20} />
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>AVG RATING</span>
+                  <h4 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                    {analyticsOverview && analyticsOverview.avgRating ? `${analyticsOverview.avgRating}/5` : 'N/A'}
+                  </h4>
+                </div>
+              </div>
+            </Card>
           </div>
-        </Card>
 
-      </div>
+          {/* Visual Distribution Graphs */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+            <DoughnutChart
+              title="Status Allocation Share"
+              data={analyticsOverview ? [
+                { label: 'Pending', value: analyticsOverview.statusCounts.pending, color: 'var(--warning)' },
+                { label: 'Assigned', value: analyticsOverview.statusCounts.assigned, color: 'var(--primary)' },
+                { label: 'In Progress', value: analyticsOverview.statusCounts['in-progress'], color: 'var(--info)' },
+                { label: 'Resolved', value: analyticsOverview.statusCounts.resolved, color: 'var(--success)' },
+                { label: 'Closed', value: analyticsOverview.statusCounts.closed, color: 'var(--text-muted)' }
+              ] : []}
+            />
+
+            <BarChart
+              title="Complaints by Category"
+              data={categoryAnalytics.map(c => ({
+                label: c.category,
+                value: c.total,
+                color: 'var(--primary)'
+              }))}
+            />
+
+            <BarChart
+              title="Complaints by Hostel Block"
+              data={hostelAnalytics.map(h => ({
+                label: h.hostelBlock,
+                value: h.total,
+                color: 'var(--info)'
+              }))}
+            />
+          </div>
+
+          {/* Chronological Trends & Problematic Areas */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch' }}>
+            <Card
+              title="Complaint Registration Trends"
+              extra={
+                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                  {['daily', 'weekly', 'monthly'].map(range => (
+                    <Button
+                      key={range}
+                      variant={trendsRange === range ? 'primary' : 'outline'}
+                      size="sm"
+                      onClick={() => setTrendsRange(range)}
+                      style={{ textTransform: 'capitalize', padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                    >
+                      {range}
+                    </Button>
+                  ))}
+                </div>
+              }
+            >
+              <LineChart data={trendsData} />
+            </Card>
+
+            <Card title="Hotspot Alerts (Hostel / Category)" extra={<AlertTriangle size={18} style={{ color: 'var(--danger)' }} />}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', textAlign: 'left' }}>
+                {problematicCombos.map((item, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.75rem',
+                    backgroundColor: 'var(--danger-light)',
+                    borderRadius: 'var(--radius-sm)',
+                    borderLeft: '4px solid var(--danger)'
+                  }}>
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--danger-text)' }}>
+                        {item.hostel}
+                      </strong>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                        Issue: {item.category}
+                      </span>
+                    </div>
+                    <Badge status="high">{item.count} tickets</Badge>
+                  </div>
+                ))}
+                {problematicCombos.length === 0 && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No problematic combinations detected.</div>
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* Staff Workload Leaderboard */}
+          <Card title="Staff Allocation & Workload Monitor" extra={<Award size={18} style={{ color: 'var(--success)' }} />}>
+            <Table
+              columns={staffColumns}
+              data={staffWorkload}
+              emptyMessage="No active maintenance staff members logged in."
+            />
+          </Card>
+
+          {/* SLA Warning Registers */}
+          <Card title="SLA Deadline Breach Warning Board" extra={<AlertTriangle size={18} style={{ color: 'var(--warning)' }} />}>
+            {loadingAnalytics ? (
+              <div style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Refreshing SLA records...</div>
+            ) : (
+              <>
+                <Table
+                  columns={overviewColumns}
+                  data={overdueComplaints}
+                  emptyMessage="Awesome! No complaints are currently overdue."
+                />
+                {overdueTotalPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1.5rem' }}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={ChevronLeft}
+                      disabled={overduePage === 1}
+                      onClick={() => setOverduePage(p => Math.max(1, p - 1))}
+                    >
+                      Prev
+                    </Button>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                      Page {overduePage} of {overdueTotalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={ChevronRight}
+                      disabled={overduePage === overdueTotalPages}
+                      onClick={() => setOverduePage(p => Math.min(overdueTotalPages, p + 1))}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </Card>
+        </>
+      )}
 
       {/* Detail Modal */}
       <Modal
@@ -321,6 +745,11 @@ const AdminDashboard = () => {
               <Badge status={detailComplaint.status}>{detailComplaint.status}</Badge>
               <Badge status={detailComplaint.urgency}>{detailComplaint.urgency} Priority</Badge>
               <Badge status="other">{detailComplaint.category}</Badge>
+              {detailComplaint.slaInfo && (
+                <Badge status={detailComplaint.slaInfo.status === 'OVERDUE' || detailComplaint.slaInfo.status === 'COMPLETED_LATE' ? 'high' : detailComplaint.slaInfo.status === 'AT_RISK' ? 'medium' : 'low'}>
+                  SLA: {detailComplaint.slaInfo.status}
+                </Badge>
+              )}
             </div>
 
             <div style={{ borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: '0.75rem 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -343,6 +772,27 @@ const AdminDashboard = () => {
                 </span>
               </div>
             </div>
+
+            {/* SLA Specific timings in details modal */}
+            {detailComplaint.slaInfo && (
+              <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid var(--primary)' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>SLA Deadlines</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.4rem', fontSize: '0.825rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>First-Response Limit:</span>
+                    <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
+                      {new Date(detailComplaint.slaInfo.responseDeadline).toLocaleString()}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Resolution Limit:</span>
+                    <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
+                      {new Date(detailComplaint.slaInfo.resolutionDeadline).toLocaleString()}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div>
               <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Description</h5>

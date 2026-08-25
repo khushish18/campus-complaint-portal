@@ -63,3 +63,19 @@ exports.getSystemStats = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Get all users (Admin only)
+// @route   GET /api/users
+// @access  Private (Admin)
+exports.getUsers = async (req, res, next) => {
+  try {
+    const users = await User.find({}).select('-passwordHash').sort({ role: 1, name: 1 });
+    res.json({
+      success: true,
+      count: users.length,
+      users,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
