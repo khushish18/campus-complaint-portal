@@ -39,6 +39,32 @@ const WardenDashboard = () => {
   const [detailComplaint, setDetailComplaint] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [liveTimeRemainingMs, setLiveTimeRemainingMs] = useState(null);
+
+  useEffect(() => {
+    if (!isDetailModalOpen || !detailComplaint || !detailComplaint.slaInfo) {
+      setLiveTimeRemainingMs(null);
+      return;
+    }
+
+    const isActive = detailComplaint.status !== 'resolved' && detailComplaint.status !== 'closed';
+    if (!isActive) {
+      setLiveTimeRemainingMs(null);
+      return;
+    }
+
+    const deadline = new Date(detailComplaint.slaInfo.resolutionDeadline).getTime();
+    
+    const updateTimer = () => {
+      const remaining = deadline - Date.now();
+      setLiveTimeRemainingMs(Math.max(0, remaining));
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [isDetailModalOpen, detailComplaint]);
 
   const fetchComplaints = async () => {
     try {
@@ -450,6 +476,21 @@ const WardenDashboard = () => {
                     </strong>
                   </div>
                 </div>
+                {/* Remaining time countdown */}
+                {detailComplaint.status !== 'resolved' && detailComplaint.status !== 'closed' && liveTimeRemainingMs !== null && (
+                  <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>Time Remaining for Resolution:</span>
+                    <strong style={{ 
+                      fontSize: '0.9rem', 
+                      color: liveTimeRemainingMs <= 0 ? 'var(--danger)' : (detailComplaint.slaInfo.status === 'AT_RISK' || liveTimeRemainingMs < 0.15 * (new Date(detailComplaint.slaInfo.resolutionDeadline).getTime() - new Date(detailComplaint.createdAt).getTime()) ? 'var(--warning)' : 'var(--success)')
+                    }}>
+                      {liveTimeRemainingMs <= 0 
+                        ? 'OVERDUE' 
+                        : `${Math.floor(liveTimeRemainingMs / (60 * 60 * 1000))}h ${Math.floor((liveTimeRemainingMs % (60 * 60 * 1000)) / (60 * 1000))}m remaining`
+                      }
+                    </strong>
+                  </div>
+                )}
               </div>
             )}
 
