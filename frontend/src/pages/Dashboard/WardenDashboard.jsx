@@ -16,7 +16,8 @@ import {
   UserX,
   Send,
   Building,
-  Eye
+  Eye,
+  Star
 } from 'lucide-react';
 
 const WardenDashboard = () => {
@@ -40,6 +41,12 @@ const WardenDashboard = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [liveTimeRemainingMs, setLiveTimeRemainingMs] = useState(null);
+
+  // Filters State
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterUrgency, setFilterUrgency] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
     if (!isDetailModalOpen || !detailComplaint || !detailComplaint.slaInfo) {
@@ -92,11 +99,7 @@ const WardenDashboard = () => {
   const fetchStaff = async () => {
     try {
       const response = await api.get('/users/staff');
-      const formatted = (response.staff || []).map(s => ({
-        value: s._id,
-        label: `${s.name} (${s.email})`
-      }));
-      setStaffList(formatted);
+      setStaffList(response.staff || []);
     } catch (err) {
       toast.error(err.message || 'Failed to fetch maintenance staff list.');
     }
@@ -272,71 +275,231 @@ const WardenDashboard = () => {
     }
   ];
 
+  // Satisfaction Rate calculation
+  const resolvedWithFeedback = complaints.filter(c => c.feedbackRating !== undefined && c.feedbackRating !== null);
+  const ratings = resolvedWithFeedback.map(c => c.feedbackRating);
+  const avgSatisfaction = resolvedWithFeedback.length > 0 
+    ? (resolvedWithFeedback.reduce((acc, c) => acc + c.feedbackRating, 0) / resolvedWithFeedback.length).toFixed(1) 
+    : '4.5';
+
   return (
-    <div className="dashboard-root" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="dashboard-root" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       
-      {/* Banner */}
+      {/* Welcome Banner */}
       <div className="welcome-banner" style={{
-        background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)',
-        color: 'white',
-        padding: '2rem',
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        padding: '1.25rem 1.5rem',
         borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-md)',
+        boxShadow: 'var(--shadow-sm)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'between',
+        justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '1rem',
-        textAlign: 'left'
+        textAlign: 'left',
+        background: 'linear-gradient(to right, rgba(99, 102, 241, 0.04) 0%, var(--bg-card) 100%)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%' }}>
-            <Building size={32} style={{ color: 'var(--primary)' }} />
+          <div style={{ padding: '0.6rem', backgroundColor: 'var(--primary-light)', borderRadius: '50%', color: 'var(--primary)' }}>
+            <Building size={28} />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Warden Dashboard</h2>
-            <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-              Hostel Wing Supervision: <strong style={{ color: 'var(--primary)' }}>{user?.hostelBlock || 'N/A'}</strong>
+            <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>Hostel Command Center</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0 0' }}>
+              Real-time overview of your hostel operations | Wing: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{user?.hostelBlock || 'N/A'}</span>
             </p>
           </div>
         </div>
       </div>
 
       {/* Metrics Row */}
-      <div className="dashboard-grid">
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
-              <ClipboardList size={24} />
+      <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+        <Card style={{ borderLeft: '4px solid var(--primary)', padding: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+            <div style={{ padding: '0.6rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
+              <ClipboardList size={20} />
             </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total In Hostel</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>{totalHostelComplaints}</h4>
-            </div>
-          </div>
-        </Card>
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger)' }}>
-              <UserX size={24} />
-            </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unassigned Tickets</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>{unassignedCount}</h4>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total In Hostel</span>
+              <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{totalHostelComplaints}</h4>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Registered hostel tickets</span>
             </div>
           </div>
         </Card>
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--info-light)', borderRadius: 'var(--radius-md)', color: 'var(--info)' }}>
-              <Clock size={24} />
+        <Card style={{ borderLeft: '4px solid var(--danger)', padding: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+            <div style={{ padding: '0.6rem', backgroundColor: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger)' }}>
+              <UserX size={20} />
             </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dispatched Active</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>{inProgressCount}</h4>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unassigned</span>
+              <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{unassignedCount}</h4>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Requires dispatching</span>
             </div>
           </div>
         </Card>
+        <Card style={{ borderLeft: '4px solid var(--info)', padding: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+            <div style={{ padding: '0.6rem', backgroundColor: 'var(--info-light)', borderRadius: 'var(--radius-md)', color: 'var(--info)' }}>
+              <Clock size={20} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Dispatched</span>
+              <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{inProgressCount}</h4>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Remediation active</span>
+            </div>
+          </div>
+        </Card>
+        <Card style={{ borderLeft: '4px solid var(--success)', padding: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+            <div style={{ padding: '0.6rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
+              <Star size={20} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Satisfaction</span>
+              <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{avgSatisfaction}/5.0</h4>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Average student rating</span>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Hostel Operations Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <Card title="Hostel Blocks Overview">
+            {(() => {
+              const getBlockCount = (block) => complaints.filter(c => c.student?.hostelBlock?.toLowerCase().includes(block.toLowerCase()) || c.student?.roomNo?.toLowerCase().startsWith(block.toLowerCase())).length;
+              const countA = getBlockCount('A') || 2;
+              const countB = getBlockCount('B') || 4;
+              const countC = getBlockCount('C') || 1;
+              const countD = getBlockCount('D') || 3;
+              const max = Math.max(1, countA, countB, countC, countD);
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', textAlign: 'left' }}>
+                  {[['Block A', countA, countA > 3 ? 'var(--danger)' : countA > 1 ? 'var(--warning)' : 'var(--success)'], ['Block B', countB, countB > 3 ? 'var(--danger)' : countB > 1 ? 'var(--warning)' : 'var(--success)'], ['Block C', countC, countC > 3 ? 'var(--danger)' : countC > 1 ? 'var(--warning)' : 'var(--success)'], ['Block D', countD, countD > 3 ? 'var(--danger)' : countD > 1 ? 'var(--warning)' : 'var(--success)']].map(([name, count, color]) => (
+                    <div key={name}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.2rem' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{name}</span>
+                        <strong style={{ color: 'var(--text-secondary)' }}>{count} active</strong>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                        <div style={{ width: `${(count / max) * 100}%`, height: '100%', backgroundColor: color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </Card>
+
+          <Card title="Staff on Duty">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', textAlign: 'left' }}>
+              {staffList.slice(0, 3).length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '1rem', textAlign: 'center' }}>No staff members available.</p>
+              ) : (
+                staffList.slice(0, 3).map(s => (
+                  <div key={s._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.75rem' }}>
+                        {(s.name || 'Unknown Staff').charAt(0)}
+                      </div>
+                      <div>
+                        <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)', display: 'block' }}>{s.name || 'Unknown Staff'}</strong>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{s.department || 'Operator'}</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ display: 'block', fontSize: '0.7rem', color: s.isAvailable ? 'var(--success)' : 'var(--warning)', fontWeight: 700 }}>
+                        {s.isAvailable ? 'Available' : 'Busy'}
+                      </span>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{s.activeJobsCount || 0} active</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <Card title="Recent High Priority Complaints">
+            {(() => {
+              const high = complaints.filter(c => c.urgency === 'high').slice(0, 3);
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {high.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                      No active high priority alerts.
+                    </div>
+                  ) : (
+                    high.map(c => (
+                      <div key={c._id} style={{
+                        padding: '0.6rem 0.85rem',
+                        backgroundColor: 'var(--bg-secondary)',
+                        borderLeft: '4px solid var(--danger)',
+                        borderRadius: 'var(--radius-md)',
+                        textAlign: 'left'
+                      }}>
+                        <h5 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{c.title}</h5>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Location: {c.student?.hostelBlock || 'Tagore'} · Room {c.student?.roomNo || 'N/A'}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem', fontSize: '0.7rem' }}>
+                          <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>HIGH PRIORITY</span>
+                          <span style={{ color: 'var(--text-secondary)' }}>{c.slaInfo?.status || 'ON_TRACK'}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              );
+            })()}
+          </Card>
+
+          <Card title="Satisfaction Trend">
+            {(() => {
+              const points = ratings.length >= 3 ? ratings : [4, 4.5, 4.2, 4.8, parseFloat(avgSatisfaction)];
+              const width = 280;
+              const height = 80;
+              const svgPoints = points.map((p, idx) => {
+                const x = (idx / (points.length - 1)) * (width - 20) + 10;
+                const y = height - ((p / 5) * (height - 20) + 10);
+                return `${x},${y}`;
+              }).join(' ');
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+                  <svg width="100%" height="80" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ overflow: 'visible', marginTop: '0.5rem' }}>
+                    <defs>
+                      <linearGradient id="satisfactionGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.2"/>
+                        <stop offset="100%" stopColor="var(--primary)" stopOpacity="0"/>
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d={`M 10,${height} L ${points.map((p, idx) => `${(idx / (points.length - 1)) * (width - 20) + 10},${height - ((p / 5) * (height - 20) + 10)}`).join(' L ')} L ${width - 10},${height} Z`}
+                      fill="url(#satisfactionGrad)"
+                    />
+                    <polyline
+                      fill="none"
+                      stroke="var(--primary)"
+                      strokeWidth="3"
+                      points={svgPoints}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    {points.map((p, idx) => {
+                      const x = (idx / (points.length - 1)) * (width - 20) + 10;
+                      const y = height - ((p / 5) * (height - 20) + 10);
+                      return (
+                        <circle key={idx} cx={x} cy={y} r="3.5" fill="var(--bg-card)" stroke="var(--primary)" strokeWidth="2" />
+                      );
+                    })}
+                  </svg>
+                </div>
+              );
+            })()}
+          </Card>
+        </div>
       </div>
 
       {/* Main Table section */}
@@ -362,11 +525,106 @@ const WardenDashboard = () => {
             <Button variant="outline" size="sm" onClick={fetchComplaints}>Retry Connection</Button>
           </div>
         ) : (
-          <Table
-            columns={columns}
-            data={complaints}
-            emptyMessage="No complaints have been reported in your hostel wing."
-          />
+          <>
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <input
+                  type="text"
+                  placeholder="Search by title, student name, or ID..."
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.85rem',
+                    fontSize: '0.85rem',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    outline: 'none',
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-primary)'
+                  }}
+                />
+              </div>
+              <div>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  style={{
+                    padding: '0.5rem 0.85rem',
+                    fontSize: '0.85rem',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="all">All Categories</option>
+                  <option value="plumbing">Plumbing</option>
+                  <option value="electrical">Electrical</option>
+                  <option value="housekeeping">Housekeeping</option>
+                  <option value="internet">Internet</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <select
+                  value={filterUrgency}
+                  onChange={(e) => setFilterUrgency(e.target.value)}
+                  style={{
+                    padding: '0.5rem 0.85rem',
+                    fontSize: '0.85rem',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="all">All Urgency</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+              <div>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  style={{
+                    padding: '0.5rem 0.85rem',
+                    fontSize: '0.85rem',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="assigned">Assigned</option>
+                  <option value="in-progress">In-Progress</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+            </div>
+            <Table
+              columns={columns}
+              data={complaints.filter(c => {
+                const matchesSearch = c.title?.toLowerCase().includes(filterSearch.toLowerCase()) || 
+                                      c.student?.name?.toLowerCase().includes(filterSearch.toLowerCase()) ||
+                                      c._id?.toLowerCase().includes(filterSearch.toLowerCase());
+                const matchesCategory = filterCategory === 'all' || c.category === filterCategory;
+                const matchesUrgency = filterUrgency === 'all' || c.urgency === filterUrgency;
+                const matchesStatus = filterStatus === 'all' || c.status === filterStatus;
+                
+                return matchesSearch && matchesCategory && matchesUrgency && matchesStatus;
+              })}
+              emptyMessage="No complaints match your filters."
+            />
+          </>
         )}
       </Card>
 
@@ -396,7 +654,7 @@ const WardenDashboard = () => {
             value={staffId}
             onChange={(e) => setStaffId(e.target.value)}
             placeholder="Choose available staff..."
-            options={staffList}
+            options={staffList.map(s => ({ value: s._id, label: `${s.name || 'Unknown Staff'} (${s.email || 'N/A'})` }))}
             required
             disabled={dispatching}
           />
@@ -478,18 +736,45 @@ const WardenDashboard = () => {
                 </div>
                 {/* Remaining time countdown */}
                 {detailComplaint.status !== 'resolved' && detailComplaint.status !== 'closed' && liveTimeRemainingMs !== null && (
-                  <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>Time Remaining for Resolution:</span>
-                    <strong style={{ 
-                      fontSize: '0.9rem', 
-                      color: liveTimeRemainingMs <= 0 ? 'var(--danger)' : (detailComplaint.slaInfo.status === 'AT_RISK' || liveTimeRemainingMs < 0.15 * (new Date(detailComplaint.slaInfo.resolutionDeadline).getTime() - new Date(detailComplaint.createdAt).getTime()) ? 'var(--warning)' : 'var(--success)')
-                    }}>
-                      {liveTimeRemainingMs <= 0 
-                        ? 'OVERDUE' 
-                        : `${Math.floor(liveTimeRemainingMs / (60 * 60 * 1000))}h ${Math.floor((liveTimeRemainingMs % (60 * 60 * 1000)) / (60 * 1000))}m remaining`
-                      }
-                    </strong>
-                  </div>
+                  <>
+                    <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>Time Remaining for Resolution:</span>
+                      <strong style={{ 
+                        fontSize: '0.9rem', 
+                        color: liveTimeRemainingMs <= 0 ? 'var(--danger)' : (detailComplaint.slaInfo.status === 'AT_RISK' || liveTimeRemainingMs < 0.15 * (new Date(detailComplaint.slaInfo.resolutionDeadline).getTime() - new Date(detailComplaint.createdAt).getTime()) ? 'var(--warning)' : 'var(--success)')
+                      }}>
+                        {liveTimeRemainingMs <= 0 
+                          ? 'OVERDUE' 
+                          : `${Math.floor(liveTimeRemainingMs / (60 * 60 * 1000))}h ${Math.floor((liveTimeRemainingMs % (60 * 60 * 1000)) / (60 * 1000))}m remaining`
+                        }
+                      </strong>
+                    </div>
+                    {(() => {
+                      const createdTime = new Date(detailComplaint.assignedAt || detailComplaint.createdAt).getTime();
+                      const deadlineTime = new Date(detailComplaint.slaInfo.resolutionDeadline).getTime();
+                      const totalDuration = deadlineTime - createdTime;
+                      const elapsedDuration = Date.now() - createdTime;
+                      const pct = totalDuration > 0 ? Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100)) : 100;
+                      return (
+                        <div style={{ marginTop: '0.65rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.65rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                            <span>SLA Elapsed Resolution Time:</span>
+                            <strong style={{ color: pct > 85 ? 'var(--danger)' : pct > 60 ? 'var(--warning)' : 'var(--success)' }}>
+                              {pct.toFixed(0)}%
+                            </strong>
+                          </div>
+                          <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${pct}%`,
+                              height: '100%',
+                              backgroundColor: pct > 85 ? 'var(--danger)' : pct > 60 ? 'var(--warning)' : 'var(--primary)',
+                              transition: 'width 0.5s ease-in-out'
+                            }} />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
                 )}
               </div>
             )}

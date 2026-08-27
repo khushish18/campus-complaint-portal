@@ -22,7 +22,7 @@ const Layout = ({
   };
 
   return (
-    <div className={`app-shell ${sidebarCollapsed ? 'app-shell-collapsed' : ''}`}>
+    <div className={`app-shell app-shell-${user?.role || 'student'} ${sidebarCollapsed ? 'app-shell-collapsed' : ''}`}>
       {/* Sidebar Navigation */}
       <Sidebar
         role={user?.role}

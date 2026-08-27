@@ -65,10 +65,13 @@ const Sidebar = ({
       {/* Header section inside dark navy sidebar */}
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <ShieldCheck size={28} className="logo-icon" />
-          <span className="logo-text">CampusCare</span>
+          <ShieldCheck size={26} className="logo-icon" style={{ color: 'var(--primary)' }} />
+          <div className="logo-details">
+            <span className="logo-text">CampusCare</span>
+            <span className="logo-subtext">SMARTCAMPUS OPERATIONS</span>
+          </div>
         </div>
-        <div className="role-sublabel">{role} Portal</div>
+        <div className="role-sublabel">{role} PORTAL</div>
       </div>
 
       {/* Navigation list */}

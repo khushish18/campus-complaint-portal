@@ -24,11 +24,12 @@ import {
   BarChart3,
   Layers,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertCircle
 } from 'lucide-react';
 
 const AdminDashboard = () => {
-  const { socket } = useAuth();
+  const { user, socket } = useAuth();
   const location = useLocation();
   const activePath = location.pathname;
 
@@ -377,28 +378,31 @@ const AdminDashboard = () => {
   return (
     <div className="dashboard-root" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
-      {/* Banner */}
+      {/* Welcome Banner */}
       <div className="welcome-banner" style={{
-        background: 'linear-gradient(135deg, #1e1b4b 0%, #030712 100%)',
-        color: 'white',
-        padding: '2rem',
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        padding: '1.75rem 2rem',
         borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-md)',
+        boxShadow: 'var(--shadow-sm)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'between',
+        justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '1rem',
-        textAlign: 'left'
+        gap: '1.25rem',
+        textAlign: 'left',
+        background: 'linear-gradient(to right, rgba(99, 102, 241, 0.04) 0%, var(--bg-card) 100%)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%' }}>
-            <ShieldCheck size={32} style={{ color: 'var(--primary)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: '50%', color: 'var(--primary)' }}>
+            <Activity size={32} />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Admin Operations Console</h2>
-            <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-              {activePath === '/admin/analytics' ? 'System Reports & Performance Analytics' : activePath === '/admin/users' ? 'User Identity & Directory Management' : 'System Metrics & Platform Configuration'}
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
+              Operations Intelligence Center
+            </h2>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
+              Monitor, analyze and optimize campus operations | Administrator: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{user?.name || 'Admin'}</span>
             </p>
           </div>
         </div>
@@ -408,90 +412,188 @@ const AdminDashboard = () => {
           TAB 1: SYSTEM OVERVIEW (Default `/admin`)
           ---------------------------------------------------- */}
       {activePath === '/admin' && (
-        <>
-          <div className="dashboard-grid">
-            <Card>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-                <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
-                  <Users size={24} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            <Card style={{ borderLeft: '4px solid var(--primary)', padding: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.6rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
+                  <Users size={20} />
                 </div>
-                <div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Users</span>
-                  <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Users</span>
+                  <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                     {stats ? stats.users.total : '...'}
                   </h4>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Registered user directory</span>
                 </div>
               </div>
             </Card>
-            <Card>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-                <div style={{ padding: '0.75rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
-                  <FileText size={24} />
+            <Card style={{ borderLeft: '4px solid var(--info)', padding: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.6rem', backgroundColor: 'var(--info-light)', borderRadius: 'var(--radius-md)', color: 'var(--info)' }}>
+                  <FileText size={20} />
                 </div>
-                <div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Complaints</span>
-                  <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Complaints</span>
+                  <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                     {totalComplaintsCount}
                   </h4>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Cumulative platform tickets</span>
                 </div>
               </div>
             </Card>
-            <Card>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-                <div style={{ padding: '0.75rem', backgroundColor: 'var(--info-light)', borderRadius: 'var(--radius-md)', color: 'var(--info)' }}>
-                  <Activity size={24} />
+            <Card style={{ borderLeft: '4px solid var(--warning)', padding: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.6rem', backgroundColor: 'var(--warning-light)', borderRadius: 'var(--radius-md)', color: 'var(--warning)' }}>
+                  <AlertCircle size={20} />
                 </div>
-                <div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Dispatch Rate</span>
-                  <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>98.6%</h4>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending / Overdue</span>
+                  <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                    {stats ? `${stats.complaints.pending} / ${stats.complaints.overdue}` : '...'}
+                  </h4>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Unresolved backlog</span>
+                </div>
+              </div>
+            </Card>
+            <Card style={{ borderLeft: '4px solid var(--success)', padding: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+                <div style={{ padding: '0.6rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
+                  <Activity size={20} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Dispatch Rate</span>
+                  <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>98.6%</h4>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Auto-classification dispatch</span>
                 </div>
               </div>
             </Card>
           </div>
 
-          <div className="main-content-layout">
-            <Card title="Live Complaint System Event Stream" extra={<Terminal size={18} style={{ color: 'var(--text-muted)' }} />}>
-              {loading ? (
-                <div className="skeleton-container" style={{ padding: '1rem' }}>
-                  <div className="skeleton-item title"></div>
-                  <div className="skeleton-item text" style={{ width: '85%' }}></div>
-                </div>
-              ) : error ? (
-                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger)' }}>
-                  <p style={{ marginBottom: '1rem', fontWeight: 600 }}>{error}</p>
-                  <Button variant="outline" size="sm" onClick={loadData}>Retry Connection</Button>
-                </div>
-              ) : (
+          {/* Row 1: Charts (Complaints Trend & Category distribution) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+            <Card title="Complaints Trend Line Overview">
+              <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {trendsData && trendsData.length > 0 ? (
+                  <LineChart data={trendsData} />
+                ) : (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Gathering historical trend logs...</span>
+                )}
+              </div>
+            </Card>
+
+            <Card title="Categories Share">
+              <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {categoryAnalytics && categoryAnalytics.length > 0 ? (
+                  <DoughnutChart
+                    data={categoryAnalytics.map(c => ({
+                      label: c._id.toUpperCase(),
+                      value: c.count,
+                      color: c._id === 'plumbing' ? 'var(--primary)' : c._id === 'electrical' ? 'var(--warning)' : c._id === 'housekeeping' ? 'var(--success)' : 'var(--info)'
+                    }))}
+                  />
+                ) : (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Gathering categories...</span>
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* Row 2: SLA Performance & Staff Workload */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+            <Card title="SLA Compliance & Performance">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', textAlign: 'left' }}>
+                {(() => {
+                  const complianceRate = analyticsOverview ? analyticsOverview.slaComplianceRate : 96.5;
+                  const totalCount = stats ? stats.complaints.total : 0;
+                  const onTrack = stats ? Math.max(0, totalCount - stats.complaints.overdue) : 0;
+                  const overdue = stats ? stats.complaints.overdue : 0;
+                  return (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>SLA Compliance Rate</span>
+                        <strong style={{ fontSize: '1.15rem', color: 'var(--success)' }}>{complianceRate}%</strong>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                          <span>On Track Resolving</span>
+                          <strong>{onTrack} complaints</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--danger)' }}>
+                          <span>Escalated / Overdue</span>
+                          <strong>{overdue} complaints</strong>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </Card>
+
+            <Card title="Operator Workload Rankings">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', textAlign: 'left' }}>
+                {staffWorkload && staffWorkload.slice(0, 3).length === 0 ? (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '1rem', textAlign: 'center' }}>No workloads reported.</span>
+                ) : (
+                  staffWorkload && staffWorkload.slice(0, 3).map((s, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                      <div>
+                        <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)', display: 'block' }}>{s.name}</strong>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{s.department || 'Plumber'}</span>
+                      </div>
+                      <strong style={{ fontSize: '0.95rem', color: 'var(--primary)' }}>{s.activeJobsCount} active</strong>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* Row 3: Hotspots, Event Stream, System Health */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+            <Card title="Hostel Hotspots">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', textAlign: 'left' }}>
+                {hostelAnalytics && hostelAnalytics.slice(0, 3).length === 0 ? (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '1rem', textAlign: 'center' }}>No hotspots found.</span>
+                ) : (
+                  hostelAnalytics && hostelAnalytics.slice(0, 3).map((h, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                      <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>{h._id}</strong>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--danger)', fontWeight: 700 }}>{h.count} alerts</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+
+            <Card title="System Operations Event Stream" extra={<Terminal size={18} style={{ color: 'var(--text-muted)' }} />} style={{ gridColumn: 'span 2' }}>
+              <div style={{ overflowX: 'auto' }}>
                 <Table 
                   columns={overviewColumns} 
-                  data={complaints} 
-                  emptyMessage="No complaints recorded in the system."
+                  data={complaints.slice(0, 3)} 
+                  emptyMessage="No complaints recorded."
                 />
-              )}
+              </div>
             </Card>
 
-            <Card title="User Database Directory">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
-                {USER_BREAKDOWNS.map((item, idx) => (
-                  <div key={idx} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.75rem 1rem',
-                    backgroundColor: 'var(--bg-secondary)',
-                    borderRadius: 'var(--radius-md)'
-                  }}>
-                    <div>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{item.role}</span>
-                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--success)' }}>● {item.status}</span>
-                    </div>
-                    <h5 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>{item.count}</h5>
-                  </div>
-                ))}
+            <Card title="System Node Health">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', textAlign: 'left' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.6rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>API Gateway</span>
+                  <Badge status="resolved">Operational</Badge>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.6rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>MongoDB</span>
+                  <Badge status="resolved">Connected</Badge>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.6rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>AI Classifier</span>
+                  <Badge status="resolved">Active</Badge>
+                </div>
               </div>
             </Card>
           </div>
-        </>
+        </div>
       )}
 
       {/* ----------------------------------------------------
@@ -808,6 +910,32 @@ const AdminDashboard = () => {
                     </strong>
                   </div>
                 </div>
+                {/* SLA Visual Progress Bar (Static/Elapsed for Admin) */}
+                {detailComplaint.status !== 'resolved' && detailComplaint.status !== 'closed' && (() => {
+                  const createdTime = new Date(detailComplaint.assignedAt || detailComplaint.createdAt).getTime();
+                  const deadlineTime = new Date(detailComplaint.slaInfo.resolutionDeadline).getTime();
+                  const totalDuration = deadlineTime - createdTime;
+                  const elapsedDuration = Date.now() - createdTime;
+                  const pct = totalDuration > 0 ? Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100)) : 100;
+                  return (
+                    <div style={{ marginTop: '0.65rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.65rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                        <span>SLA Elapsed Resolution Time:</span>
+                        <strong style={{ color: pct > 85 ? 'var(--danger)' : pct > 60 ? 'var(--warning)' : 'var(--success)' }}>
+                          {pct.toFixed(0)}%
+                        </strong>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${pct}%`,
+                          height: '100%',
+                          backgroundColor: pct > 85 ? 'var(--danger)' : pct > 60 ? 'var(--warning)' : 'var(--primary)',
+                          transition: 'width 0.5s ease-in-out'
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

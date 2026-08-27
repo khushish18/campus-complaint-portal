@@ -1,7 +1,7 @@
 .sidebar {
   width: var(--sidebar-width);
   background-color: var(--bg-sidebar);
-  color: var(--text-light);
+  color: var(--text-sidebar);
   height: 100vh;
   position: sticky;
   top: 0;
@@ -9,7 +9,7 @@
   flex-direction: column;
   transition: width var(--transition-normal), transform var(--transition-normal);
   z-index: 500;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid var(--border-color);
 }
 
 /* Sidebar header logo */
@@ -33,20 +33,38 @@
   flex-shrink: 0;
 }
 
+.logo-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+
 .logo-text {
   font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: -0.01em;
+  color: var(--text-light);
+  transition: opacity var(--transition-fast);
+}
+
+.logo-subtext {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-sidebar);
+  opacity: 0.8;
+  text-transform: uppercase;
   transition: opacity var(--transition-fast);
 }
 
 .role-sublabel {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 700;
   color: var(--primary);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding-left: 2.25rem;
+  padding-left: 2.15rem;
   transition: opacity var(--transition-fast);
 }
 
@@ -93,6 +111,7 @@
   font-size: 0.95rem;
   font-weight: 600;
   border-radius: var(--radius-md);
+  position: relative;
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
@@ -101,15 +120,26 @@
   color: var(--text-light);
 }
 
-/* Sidebar link active state using deep purple accent */
 .sidebar-link.active {
   background-color: var(--bg-sidebar-active);
   color: var(--text-sidebar-active);
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1) inset;
+  box-shadow: inset 0 0 10px rgba(99, 102, 241, 0.18);
+}
+
+.sidebar-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 4px;
+  background-color: var(--primary);
+  border-radius: 0 4px 4px 0;
 }
 
 .sidebar-link.active .link-icon {
   color: var(--primary);
+  filter: drop-shadow(0 0 4px var(--primary));
 }
 
 .link-icon {
@@ -156,6 +186,7 @@
 }
 
 .sidebar-collapsed .logo-text,
+.sidebar-collapsed .logo-subtext,
 .sidebar-collapsed .role-sublabel,
 .sidebar-collapsed .link-label {
   opacity: 0;

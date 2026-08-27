@@ -11,23 +11,23 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 .custom-table th {
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-primary);
   color: var(--text-secondary);
   font-weight: 700;
-  padding: 1rem 1.25rem;
-  border-bottom: 2px solid var(--border-color);
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
   text-transform: uppercase;
-  font-size: 0.75rem;
+  font-size: 0.725rem;
   letter-spacing: 0.05em;
   white-space: nowrap;
 }
 
 .custom-table td {
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1.25rem;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-primary);
   vertical-align: middle;
@@ -38,7 +38,7 @@
 }
 
 .custom-table tbody tr:hover {
-  background-color: var(--bg-secondary);
+  background-color: rgba(99, 102, 241, 0.02); /* modern, light-indigo hover highlight */
 }
 
 .custom-table tbody tr:last-child td {

@@ -284,66 +284,174 @@ const StaffDashboard = () => {
   return (
     <div className="dashboard-root" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
-      {/* Banner */}
+      {/* Welcome Banner */}
       <div className="welcome-banner" style={{
-        background: 'linear-gradient(135deg, #1e1b4b 0%, #111827 100%)',
-        color: 'white',
-        padding: '2rem',
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        padding: '1.75rem 2rem',
         borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-md)',
+        boxShadow: 'var(--shadow-sm)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'between',
+        justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '1rem',
-        textAlign: 'left'
+        gap: '1.25rem',
+        textAlign: 'left',
+        background: 'linear-gradient(to right, rgba(99, 102, 241, 0.04) 0%, var(--bg-card) 100%)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '50%' }}>
-            <Wrench size={32} style={{ color: 'var(--primary)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: '50%', color: 'var(--primary)' }}>
+            <Wrench size={32} />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Staff Task Sheet</h2>
-            <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Logged in as: <strong style={{ color: 'var(--primary)' }}>{user?.name}</strong></p>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>My Work Dashboard</h2>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
+              Stay on top of your assigned work orders | Dispatch Operator: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{user?.name}</span>
+            </p>
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="dashboard-grid">
-        <Card>
+        <Card style={{ borderLeft: '4px solid var(--primary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
             <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
               <Wrench size={24} />
             </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assigned Jobs</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>{totalJobs}</h4>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assigned Jobs</span>
+              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{totalJobs}</h4>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Allocated work orders</span>
             </div>
           </div>
         </Card>
-        <Card>
+        <Card style={{ borderLeft: '4px solid var(--warning)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
             <div style={{ padding: '0.75rem', backgroundColor: 'var(--warning-light)', borderRadius: 'var(--radius-md)', color: 'var(--warning)' }}>
               <Activity size={24} />
             </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Work Orders</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>{activeJobs}</h4>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Work Orders</span>
+              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{activeJobs}</h4>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Remediation in progress</span>
             </div>
           </div>
         </Card>
-        <Card>
+        <Card style={{ borderLeft: '4px solid var(--success)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
             <div style={{ padding: '0.75rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
               <CheckCircle size={24} />
             </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed Jobs</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>{resolvedJobs}</h4>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed Jobs</span>
+              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{resolvedJobs}</h4>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Closed/solved jobs history</span>
             </div>
           </div>
         </Card>
+      </div>
+
+      {/* Kanban Work Management Board */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+          {['NEW', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED'].map((columnKey) => {
+            let colTitle = columnKey.replace('_', ' ');
+            let colJobs = [];
+            if (columnKey === 'NEW') colJobs = jobs.filter(j => j.status === 'assigned');
+            else if (columnKey === 'IN_PROGRESS') colJobs = jobs.filter(j => j.status === 'in-progress');
+            else if (columnKey === 'ON_HOLD') colJobs = jobs.filter(j => j.status === 'pending');
+            else if (columnKey === 'COMPLETED') colJobs = jobs.filter(j => ['resolved', 'closed'].includes(j.status));
+
+            const colColor = columnKey === 'NEW' ? 'var(--info)' : columnKey === 'IN_PROGRESS' ? 'var(--primary)' : columnKey === 'ON_HOLD' ? 'var(--warning)' : 'var(--success)';
+
+            return (
+              <div key={columnKey} style={{
+                backgroundColor: 'var(--bg-secondary)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                minHeight: '380px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                border: '1px solid var(--border-color)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `2px solid ${colColor}`, paddingBottom: '0.5rem', marginBottom: '0.25rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{colTitle}</span>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-secondary)',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-full)'
+                  }}>{colJobs.length}</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto', flex: 1 }}>
+                  {colJobs.length === 0 ? (
+                    <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                      No tasks in this column.
+                    </div>
+                  ) : (
+                    colJobs.map((job) => (
+                      <div
+                        key={job._id}
+                        style={{
+                          backgroundColor: 'var(--bg-card)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '1rem',
+                          border: '1px solid var(--border-color)',
+                          borderTop: `4px solid ${job.urgency === 'high' ? 'var(--danger)' : job.urgency === 'medium' ? 'var(--warning)' : 'var(--success)'}`,
+                          textAlign: 'left',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.5rem',
+                          boxShadow: 'var(--shadow-sm)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                          <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)', cursor: 'pointer' }} onClick={() => handleOpenDetailModal(job._id)}>
+                            {job.title}
+                          </strong>
+                          <Badge status={job.urgency}>{job.urgency}</Badge>
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Location: {job.student?.hostelBlock} · Room {job.student?.roomNo}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          Student: <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{job.student?.name || 'N/A'}</span>
+                        </div>
+
+                        {job.slaInfo && job.status !== 'resolved' && job.status !== 'closed' && (
+                          <div style={{ fontSize: '0.75rem', color: job.slaInfo.status === 'OVERDUE' ? 'var(--danger)' : 'var(--text-secondary)', fontWeight: 600 }}>
+                            SLA: {job.slaInfo.status === 'OVERDUE' ? 'Overdue' : `${Math.floor(job.slaInfo.timeRemainingMs / (60 * 60 * 1000))}h remaining`}
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
+                          <Button variant="secondary" size="sm" onClick={() => handleOpenDetailModal(job._id)}>
+                            View
+                          </Button>
+                          {job.status === 'assigned' && (
+                            <Button variant="primary" size="sm" onClick={() => handleOpenActionModal(job._id, 'in-progress')}>
+                              Start Work
+                            </Button>
+                          )}
+                          {job.status === 'in-progress' && (
+                            <Button variant="success" size="sm" onClick={() => handleOpenActionModal(job._id, 'resolved')} style={{ backgroundColor: 'var(--success)', borderColor: 'var(--success)', color: '#ffffff' }}>
+                              Resolve
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Jobs Table */}
@@ -480,18 +588,45 @@ const StaffDashboard = () => {
                 </div>
                 {/* Remaining time countdown */}
                 {detailComplaint.status !== 'resolved' && detailComplaint.status !== 'closed' && liveTimeRemainingMs !== null && (
-                  <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>Time Remaining for Resolution:</span>
-                    <strong style={{ 
-                      fontSize: '0.9rem', 
-                      color: liveTimeRemainingMs <= 0 ? 'var(--danger)' : (detailComplaint.slaInfo.status === 'AT_RISK' || liveTimeRemainingMs < 0.15 * (new Date(detailComplaint.slaInfo.resolutionDeadline).getTime() - new Date(detailComplaint.createdAt).getTime()) ? 'var(--warning)' : 'var(--success)')
-                    }}>
-                      {liveTimeRemainingMs <= 0 
-                        ? 'OVERDUE' 
-                        : `${Math.floor(liveTimeRemainingMs / (60 * 60 * 1000))}h ${Math.floor((liveTimeRemainingMs % (60 * 60 * 1000)) / (60 * 1000))}m remaining`
-                      }
-                    </strong>
-                  </div>
+                  <>
+                    <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>Time Remaining for Resolution:</span>
+                      <strong style={{ 
+                        fontSize: '0.9rem', 
+                        color: liveTimeRemainingMs <= 0 ? 'var(--danger)' : (detailComplaint.slaInfo.status === 'AT_RISK' || liveTimeRemainingMs < 0.15 * (new Date(detailComplaint.slaInfo.resolutionDeadline).getTime() - new Date(detailComplaint.createdAt).getTime()) ? 'var(--warning)' : 'var(--success)')
+                      }}>
+                        {liveTimeRemainingMs <= 0 
+                          ? 'OVERDUE' 
+                          : `${Math.floor(liveTimeRemainingMs / (60 * 60 * 1000))}h ${Math.floor((liveTimeRemainingMs % (60 * 60 * 1000)) / (60 * 1000))}m remaining`
+                        }
+                      </strong>
+                    </div>
+                    {(() => {
+                      const createdTime = new Date(detailComplaint.assignedAt || detailComplaint.createdAt).getTime();
+                      const deadlineTime = new Date(detailComplaint.slaInfo.resolutionDeadline).getTime();
+                      const totalDuration = deadlineTime - createdTime;
+                      const elapsedDuration = Date.now() - createdTime;
+                      const pct = totalDuration > 0 ? Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100)) : 100;
+                      return (
+                        <div style={{ marginTop: '0.65rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.65rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                            <span>SLA Elapsed Resolution Time:</span>
+                            <strong style={{ color: pct > 85 ? 'var(--danger)' : pct > 60 ? 'var(--warning)' : 'var(--success)' }}>
+                              {pct.toFixed(0)}%
+                            </strong>
+                          </div>
+                          <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${pct}%`,
+                              height: '100%',
+                              backgroundColor: pct > 85 ? 'var(--danger)' : pct > 60 ? 'var(--warning)' : 'var(--primary)',
+                              transition: 'width 0.5s ease-in-out'
+                            }} />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
                 )}
               </div>
             )}

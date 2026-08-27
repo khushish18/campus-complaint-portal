@@ -2,21 +2,23 @@
   display: flex;
   min-height: 100vh;
   width: 100%;
+  transition: background-color var(--transition-normal);
 }
 
 .app-main-viewport {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 0; /* Prevents flex children from breaking parent bounds */
+  min-width: 0;
   min-height: 100vh;
 }
 
 .app-page-content {
   flex: 1;
-  padding: 2rem;
+  padding: 1.5rem 2rem;
   background-color: var(--bg-primary);
   overflow-y: auto;
+  transition: background-color var(--transition-normal);
 }
 
 /* Mobile backdrop drawer cover */
@@ -42,4 +44,153 @@
   .app-page-content {
     padding: 1.25rem;
   }
+}
+
+/* ==========================================================================
+   ROLE-SPECIFIC STYLE OVERRIDES (THEMES)
+   ========================================================================== */
+
+/* 1. STUDENT THEME (Light, Lavender/Indigo Accent) */
+.app-shell-student {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #ffffff;
+  --border-color: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  
+  /* Sidebar Student Specifics */
+  --bg-sidebar: #ffffff;
+  --bg-sidebar-hover: #f1f5f9;
+  --bg-sidebar-active: #e0e7ff;
+  --text-sidebar: #475569;
+  --text-sidebar-active: #6366f1;
+}
+
+.app-shell-student .sidebar {
+  border-right: 1px solid var(--border-color);
+}
+.app-shell-student .sidebar-logo .logo-text {
+  color: #0f172a !important;
+}
+.app-shell-student .sidebar-logo .logo-subtext {
+  color: #64748b !important;
+}
+.app-shell-student .sidebar-link:hover {
+  background-color: var(--bg-sidebar-hover);
+  color: var(--text-primary);
+}
+.app-shell-student .sidebar-link.active {
+  background-color: var(--bg-sidebar-active);
+  color: var(--text-sidebar-active);
+}
+.app-shell-student .sidebar-link.active .link-icon {
+  color: var(--primary) !important;
+}
+.app-shell-student .sidebar-logout {
+  color: var(--text-sidebar);
+}
+.app-shell-student .sidebar-logout:hover {
+  background-color: var(--danger-light);
+  color: var(--danger);
+}
+
+/* 2. WARDEN THEME (Dark Navy / Midnight Blue Command Center) */
+.app-shell-warden {
+  --bg-primary: #020617;        /* Midnight navy canvas background */
+  --bg-secondary: #0f172a;      /* Slate secondary layout background */
+  --bg-card: #0b0f19;           /* Dark elevated card surface */
+  --border-color: #1e293b;       /* Dark slate border */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  
+  /* Sidebar Warden Specifics */
+  --bg-sidebar: #090d16;
+  --bg-sidebar-hover: #1e293b;
+  --bg-sidebar-active: #1e1b4b;
+  --text-sidebar: #94a3b8;
+  --text-sidebar-active: #ffffff;
+}
+
+.app-shell-warden .sidebar-logo .logo-text {
+  color: #ffffff !important;
+}
+.app-shell-warden .sidebar-link:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  color: #ffffff;
+}
+.app-shell-warden .sidebar-link.active {
+  background-color: var(--bg-sidebar-active);
+  color: var(--text-sidebar-active);
+}
+.app-shell-warden .sidebar-link.active .link-icon {
+  color: var(--primary) !important;
+}
+
+/* 3. STAFF THEME (Dark Navy / Blue Accent Task Manager) */
+.app-shell-staff {
+  --bg-primary: #0b1329;
+  --bg-secondary: #1c2541;
+  --bg-card: #141c30;
+  --border-color: #2a344a;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  
+  /* Sidebar Staff Specifics */
+  --bg-sidebar: #0b1329;
+  --bg-sidebar-hover: #1c2541;
+  --bg-sidebar-active: #1e1b4b;
+  --text-sidebar: #94a3b8;
+  --text-sidebar-active: #ffffff;
+}
+
+.app-shell-staff .sidebar-logo .logo-text {
+  color: #ffffff !important;
+}
+.app-shell-staff .sidebar-link:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  color: #ffffff;
+}
+.app-shell-staff .sidebar-link.active {
+  background-color: var(--bg-sidebar-active);
+  color: var(--text-sidebar-active);
+}
+.app-shell-staff .sidebar-link.active .link-icon {
+  color: var(--primary) !important;
+}
+
+/* 4. ADMIN THEME (Dark Operations Intelligence Center) */
+.app-shell-admin {
+  --bg-primary: #09090b;        /* Dark zinc background */
+  --bg-secondary: #18181b;      /* Zinc secondary layout background */
+  --bg-card: #121214;           /* Dark zinc elevated card surface */
+  --border-color: #27272a;       /* Zinc borders */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  
+  /* Sidebar Admin Specifics */
+  --bg-sidebar: #09090b;
+  --bg-sidebar-hover: #18181b;
+  --bg-sidebar-active: #27272a;
+  --text-sidebar: #a1a1aa;
+  --text-sidebar-active: #ffffff;
+}
+
+.app-shell-admin .sidebar-logo .logo-text {
+  color: #ffffff !important;
+}
+.app-shell-admin .sidebar-link:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  color: #ffffff;
+}
+.app-shell-admin .sidebar-link.active {
+  background-color: var(--bg-sidebar-active);
+  color: var(--text-sidebar-active);
+}
+.app-shell-admin .sidebar-link.active .link-icon {
+  color: var(--primary) !important;
 }

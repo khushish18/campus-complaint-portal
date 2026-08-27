@@ -18,7 +18,12 @@ import {
   Sparkles,
   Eye,
   User,
-  Star
+  Star,
+  Droplet,
+  Zap,
+  Wifi,
+  FileText,
+  MessageSquare
 } from 'lucide-react';
 
 const NOTICES = [
@@ -26,9 +31,43 @@ const NOTICES = [
   { id: 2, title: 'Wi-Fi Upgrade Phase-II', date: 'Aug 24, 02 AM - 05 AM', body: 'Tagore and Radhakrishnan Hostels core internet router replacement.' },
 ];
 
+const getCategoryIcon = (category) => {
+  switch (category?.toLowerCase()) {
+    case 'plumbing':
+      return <Droplet size={18} />;
+    case 'electrical':
+      return <Zap size={18} />;
+    case 'housekeeping':
+      return <Sparkles size={18} />;
+    case 'internet':
+      return <Wifi size={18} />;
+    default:
+      return <FileText size={18} />;
+  }
+};
+
 const StudentDashboard = () => {
   const { user, socket } = useAuth();
   const toast = useToast();
+  
+  const formatDate = (dateVal) => {
+    if (!dateVal) return 'N/A';
+    const d = new Date(dateVal);
+    return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString();
+  };
+
+  const formatTime = (dateVal) => {
+    if (!dateVal) return 'N/A';
+    const d = new Date(dateVal);
+    return isNaN(d.getTime()) ? 'N/A' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDateTime = (dateVal) => {
+    if (!dateVal) return 'N/A';
+    const d = new Date(dateVal);
+    return isNaN(d.getTime()) ? 'N/A' : d.toLocaleString();
+  };
+
   
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +85,32 @@ const StudentDashboard = () => {
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [liveTimeRemainingMs, setLiveTimeRemainingMs] = useState(null);
+
+  useEffect(() => {
+    if (!isDetailModalOpen || !selectedComplaint || !selectedComplaint.slaInfo) {
+      setLiveTimeRemainingMs(null);
+      return;
+    }
+
+    const isActive = selectedComplaint.status !== 'resolved' && selectedComplaint.status !== 'closed';
+    if (!isActive) {
+      setLiveTimeRemainingMs(null);
+      return;
+    }
+
+    const deadline = new Date(selectedComplaint.slaInfo.resolutionDeadline).getTime();
+    
+    const updateTimer = () => {
+      const remaining = deadline - Date.now();
+      setLiveTimeRemainingMs(Math.max(0, remaining));
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [isDetailModalOpen, selectedComplaint]);
 
   // Feedback State
   const [feedbackRating, setFeedbackRating] = useState(5);
@@ -335,60 +400,70 @@ const StudentDashboard = () => {
       
       {/* Welcome Banner */}
       <div className="welcome-banner" style={{
-        background: 'linear-gradient(135deg, var(--bg-sidebar-active) 0%, #111827 100%)',
-        color: 'white',
-        padding: '2rem',
+        background: 'linear-gradient(to right, rgba(99, 102, 241, 0.04) 0%, var(--bg-card) 100%)',
+        border: '1px solid var(--border-color)',
+        borderLeft: '4px solid var(--primary)',
+        padding: '1.75rem 2rem',
         borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-md)',
+        boxShadow: 'var(--shadow-sm)',
         display: 'flex',
-        justifyContent: 'between',
+        justifyContent: 'space-between',
         alignItems: 'center',
         flexWrap: 'wrap',
-        gap: '1rem'
+        gap: '1.25rem',
+        textAlign: 'left'
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.25rem' }}>Welcome Back, {user?.name}!</h2>
-          <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-            Hostel: <strong style={{ color: 'var(--primary)' }}>{user?.hostelBlock || 'N/A'}</strong> | Room: <strong style={{ color: 'var(--primary)' }}>{user?.roomNo || 'N/A'}</strong>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.4rem', maxWidth: '70%' }}>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
+            Welcome back, {user?.name}!
+          </h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
+            Resident at <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{user?.hostelBlock || 'N/A'}</span>, Room <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{user?.roomNo || 'N/A'}</span>
+          </p>
+          <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.4 }}>
+            Report facility concerns or utility breakdowns. Our AI automatically tags and assigns dispatch crews to resolve your tickets within SLA deadlines.
           </p>
         </div>
-        <Button variant="primary" icon={PlusCircle} onClick={handleOpenRaiseModal}>
+        <Button variant="primary" icon={PlusCircle} onClick={handleOpenRaiseModal} style={{ boxShadow: '0 4px 10px rgba(99, 102, 241, 0.2)' }}>
           Raise New Complaint
         </Button>
       </div>
 
       {/* Metrics Row */}
       <div className="dashboard-grid">
-        <Card>
-          <div className="flex items-center gap-4" style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
+        <Card style={{ borderLeft: '4px solid var(--primary)', position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
             <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
               <ClipboardList size={24} />
             </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Raised</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>{totalTickets}</h4>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Raised</span>
+              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{totalTickets}</h4>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Historical submission log</span>
             </div>
           </div>
         </Card>
-        <Card>
-          <div className="flex items-center gap-4" style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
+        <Card style={{ borderLeft: '4px solid var(--warning)', position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
             <div style={{ padding: '0.75rem', backgroundColor: 'var(--warning-light)', borderRadius: 'var(--radius-md)', color: 'var(--warning)' }}>
               <Clock size={24} />
             </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active / Pending</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>{pendingTickets}</h4>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active / Pending</span>
+              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{pendingTickets}</h4>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Awaiting resolution progress</span>
             </div>
           </div>
         </Card>
-        <Card>
-          <div className="flex items-center gap-4" style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
+        <Card style={{ borderLeft: '4px solid var(--success)', position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
             <div style={{ padding: '0.75rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
               <CheckCircle size={24} />
             </div>
-            <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Resolved Tickets</span>
-              <h4 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.1rem', color: 'var(--text-primary)' }}>{resolvedTickets}</h4>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Resolved Tickets</span>
+              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{resolvedTickets}</h4>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Remediated issues archive</span>
             </div>
           </div>
         </Card>
@@ -419,27 +494,112 @@ const StudentDashboard = () => {
               <p style={{ marginBottom: '1rem', fontWeight: 600 }}>{error}</p>
               <Button variant="outline" size="sm" onClick={fetchComplaints}>Retry Connection</Button>
             </div>
+          ) : complaints.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <p>You have not submitted any complaints yet.</p>
+            </div>
           ) : (
-            <Table 
-              columns={columns} 
-              data={complaints} 
-              emptyMessage="You have not submitted any complaints yet."
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {complaints.map((item) => (
+                <div
+                  key={item._id}
+                  onClick={() => handleOpenDetailModal(item._id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '1rem 1.25rem',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)',
+                    boxShadow: 'var(--shadow-sm)',
+                    textAlign: 'left'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      padding: '0.6rem',
+                      backgroundColor: 'var(--bg-secondary)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      {getCategoryIcon(item.category)}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.925rem' }}>
+                          {item.title}
+                        </span>
+                        <Badge status={item.urgency}>{item.urgency}</Badge>
+                        <Badge status={item.status}>{item.status}</Badge>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                        <span>ID: <code style={{ fontSize: '0.75rem', padding: '1px 4px' }}>{item._id.substring(item._id.length - 8)}</code></span>
+                        <span>•</span>
+                        <span>Raised: {formatDate(item.createdAt)}</span>
+                        <span>•</span>
+                        <span>Assigned to: <strong style={{ color: 'var(--text-secondary)' }}>{item.assignedTo ? item.assignedTo.name : 'Awaiting Dispatch'}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {item.slaInfo && (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: '0.8rem' }}>
+                        <span style={{ 
+                          fontWeight: 700, 
+                          color: item.slaInfo.status === 'OVERDUE' || item.slaInfo.status === 'COMPLETED_LATE' 
+                            ? 'var(--danger)' 
+                            : item.slaInfo.status === 'AT_RISK' 
+                              ? 'var(--warning)' 
+                              : 'var(--success)'
+                        }}>
+                          SLA: {item.slaInfo.status ? item.slaInfo.status.replace('_', ' ') : ''}
+                        </span>
+                        {item.status !== 'resolved' && item.status !== 'closed' && item.slaInfo.timeRemainingMs !== undefined && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                            {item.slaInfo.timeRemainingMs <= 0 ? 'Overdue limit' : `${Math.floor(item.slaInfo.timeRemainingMs / (60 * 60 * 1000))}h left`}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <Button variant="outline" size="sm" icon={Eye} onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenDetailModal(item._id);
+                    }}>
+                      View Details
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </Card>
 
         {/* Notices Board */}
-        <Card title="Announcements" extra={<BellRing size={18} style={{ color: 'var(--primary)' }} />}>
+        <Card title="Announcements" extra={<BellRing size={18} style={{ color: 'var(--text-secondary)' }} />}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', textAlign: 'left' }}>
             {NOTICES.map((n) => (
               <div key={n.id} style={{
                 padding: '1rem',
                 backgroundColor: 'var(--bg-secondary)',
                 borderRadius: 'var(--radius-md)',
-                borderLeft: '4px solid var(--primary)'
+                borderLeft: '4px solid var(--text-secondary)'
               }}>
                 <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>{n.title}</h5>
-                <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>{n.date}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>{n.date}</span>
                 <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{n.body}</p>
               </div>
             ))}
@@ -576,6 +736,68 @@ const StudentDashboard = () => {
               )}
             </div>
 
+            {selectedComplaint.slaInfo && (
+              <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid var(--primary)', textAlign: 'left', marginTop: '0.5rem' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>SLA Deadlines</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.4rem', fontSize: '0.825rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>First-Response Limit:</span>
+                    <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
+                      {formatDateTime(selectedComplaint.slaInfo.responseDeadline)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Resolution Limit:</span>
+                    <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
+                      {formatDateTime(selectedComplaint.slaInfo.resolutionDeadline)}
+                    </strong>
+                  </div>
+                </div>
+                {/* Remaining time countdown */}
+                {selectedComplaint.status !== 'resolved' && selectedComplaint.status !== 'closed' && liveTimeRemainingMs !== null && (
+                  <>
+                    <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem' }}>Time Remaining for Resolution:</span>
+                      <strong style={{ 
+                        fontSize: '0.9rem', 
+                        color: liveTimeRemainingMs <= 0 ? 'var(--danger)' : (selectedComplaint.slaInfo.status === 'AT_RISK' || liveTimeRemainingMs < 0.15 * (new Date(selectedComplaint.slaInfo.resolutionDeadline).getTime() - new Date(selectedComplaint.createdAt).getTime()) ? 'var(--warning)' : 'var(--success)')
+                      }}>
+                        {liveTimeRemainingMs <= 0 
+                          ? 'OVERDUE' 
+                          : `${Math.floor(liveTimeRemainingMs / (60 * 60 * 1000))}h ${Math.floor((liveTimeRemainingMs % (60 * 60 * 1000)) / (60 * 1000))}m remaining`
+                        }
+                      </strong>
+                    </div>
+                    {(() => {
+                      const createdTime = new Date(selectedComplaint.assignedAt || selectedComplaint.createdAt).getTime();
+                      const deadlineTime = new Date(selectedComplaint.slaInfo.resolutionDeadline).getTime();
+                      const totalDuration = deadlineTime - createdTime;
+                      const elapsedDuration = Date.now() - createdTime;
+                      const pct = totalDuration > 0 ? Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100)) : 100;
+                      return (
+                        <div style={{ marginTop: '0.65rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.65rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                            <span>SLA Elapsed Resolution Time:</span>
+                            <strong style={{ color: pct > 85 ? 'var(--danger)' : pct > 60 ? 'var(--warning)' : 'var(--success)' }}>
+                              {pct.toFixed(0)}%
+                            </strong>
+                          </div>
+                          <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${pct}%`,
+                              height: '100%',
+                              backgroundColor: pct > 85 ? 'var(--danger)' : pct > 60 ? 'var(--warning)' : 'var(--primary)',
+                              transition: 'width 0.5s ease-in-out'
+                            }} />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            )}
+
             <div>
               <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Description</h5>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.4, backgroundColor: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
@@ -671,7 +893,7 @@ const StudentDashboard = () => {
               <div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Date created</span>
                 <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                  {new Date(selectedComplaint.createdAt).toLocaleDateString()}
+                  {formatDate(selectedComplaint.createdAt)}
                 </strong>
               </div>
             </div>
@@ -689,7 +911,7 @@ const StudentDashboard = () => {
                 {selectedComplaint.history && selectedComplaint.history.map((h, i) => (
                   <div key={i} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.85rem' }}>
                     <div style={{ minWidth: '80px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      {new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatTime(h.timestamp)}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', flex: 1 }}>
                       <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
