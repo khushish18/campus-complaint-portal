@@ -45,3 +45,56 @@
   font-size: 0.95rem;
   color: var(--text-secondary);
 }
+
+/* KPI Card layout styles */
+.kpi-card-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.kpi-card-icon-container {
+  padding: 0.6rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.kpi-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.kpi-card-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-card-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0.05rem 0;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.kpi-card-description {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

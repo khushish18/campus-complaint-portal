@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import Card from '../../components/common/Card/Card';
+import KpiCard from '../../components/common/Card/KpiCard';
 import Button from '../../components/common/Button/Button';
 import Badge from '../../components/common/Badge/Badge';
 import Table from '../../components/common/Table/Table';
@@ -286,8 +287,9 @@ const StaffDashboard = () => {
       
       {/* Welcome Banner */}
       <div className="welcome-banner" style={{
-        backgroundColor: 'var(--bg-card)',
+        background: 'linear-gradient(to right, rgba(99, 102, 241, 0.04) 0%, var(--bg-card) 100%)',
         border: '1px solid var(--border-color)',
+        borderLeft: '4px solid var(--primary)',
         padding: '1.75rem 2rem',
         borderRadius: 'var(--radius-lg)',
         boxShadow: 'var(--shadow-sm)',
@@ -296,8 +298,7 @@ const StaffDashboard = () => {
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '1.25rem',
-        textAlign: 'left',
-        background: 'linear-gradient(to right, rgba(99, 102, 241, 0.04) 0%, var(--bg-card) 100%)'
+        textAlign: 'left'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
           <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: '50%', color: 'var(--primary)' }}>
@@ -314,42 +315,30 @@ const StaffDashboard = () => {
 
       {/* Stats Cards */}
       <div className="dashboard-grid">
-        <Card style={{ borderLeft: '4px solid var(--primary)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
-              <Wrench size={24} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assigned Jobs</span>
-              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{totalJobs}</h4>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Allocated work orders</span>
-            </div>
-          </div>
-        </Card>
-        <Card style={{ borderLeft: '4px solid var(--warning)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--warning-light)', borderRadius: 'var(--radius-md)', color: 'var(--warning)' }}>
-              <Activity size={24} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Work Orders</span>
-              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{activeJobs}</h4>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Remediation in progress</span>
-            </div>
-          </div>
-        </Card>
-        <Card style={{ borderLeft: '4px solid var(--success)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
-              <CheckCircle size={24} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed Jobs</span>
-              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{resolvedJobs}</h4>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Closed/solved jobs history</span>
-            </div>
-          </div>
-        </Card>
+        <KpiCard
+          icon={Wrench}
+          title="Assigned Jobs"
+          value={totalJobs}
+          description="Allocated work orders"
+          color="var(--primary)"
+          colorLight="var(--primary-light)"
+        />
+        <KpiCard
+          icon={Activity}
+          title="Active Work Orders"
+          value={activeJobs}
+          description="Remediation in progress"
+          color="var(--warning)"
+          colorLight="var(--warning-light)"
+        />
+        <KpiCard
+          icon={CheckCircle}
+          title="Completed Jobs"
+          value={resolvedJobs}
+          description="Closed/solved jobs history"
+          color="var(--success)"
+          colorLight="var(--success-light)"
+        />
       </div>
 
       {/* Kanban Work Management Board */}

@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import CommentsSection from '../../components/common/Comments/CommentsSection';
 import Card from '../../components/common/Card/Card';
+import KpiCard from '../../components/common/Card/KpiCard';
 import Button from '../../components/common/Button/Button';
 import Badge from '../../components/common/Badge/Badge';
 import Table from '../../components/common/Table/Table';
@@ -431,42 +432,30 @@ const StudentDashboard = () => {
 
       {/* Metrics Row */}
       <div className="dashboard-grid">
-        <Card style={{ borderLeft: '4px solid var(--primary)', position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
-              <ClipboardList size={24} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Raised</span>
-              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{totalTickets}</h4>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Historical submission log</span>
-            </div>
-          </div>
-        </Card>
-        <Card style={{ borderLeft: '4px solid var(--warning)', position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--warning-light)', borderRadius: 'var(--radius-md)', color: 'var(--warning)' }}>
-              <Clock size={24} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active / Pending</span>
-              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{pendingTickets}</h4>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Awaiting resolution progress</span>
-            </div>
-          </div>
-        </Card>
-        <Card style={{ borderLeft: '4px solid var(--success)', position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
-              <CheckCircle size={24} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Resolved Tickets</span>
-              <h4 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.1rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{resolvedTickets}</h4>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Remediated issues archive</span>
-            </div>
-          </div>
-        </Card>
+        <KpiCard
+          icon={ClipboardList}
+          title="Total Raised"
+          value={totalTickets}
+          description="Historical submission log"
+          color="var(--primary)"
+          colorLight="var(--primary-light)"
+        />
+        <KpiCard
+          icon={Clock}
+          title="Active / Pending"
+          value={pendingTickets}
+          description="Awaiting resolution progress"
+          color="var(--warning)"
+          colorLight="var(--warning-light)"
+        />
+        <KpiCard
+          icon={CheckCircle}
+          title="Resolved Tickets"
+          value={resolvedTickets}
+          description="Remediated issues archive"
+          color="var(--success)"
+          colorLight="var(--success-light)"
+        />
       </div>
 
       {/* Main Grid: Left = Table, Right = Notices */}

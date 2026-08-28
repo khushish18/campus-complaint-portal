@@ -5,9 +5,9 @@
   --bg-primary: #f8fafc;        /* Soft cool gray/blue page background */
   --bg-secondary: #f1f5f9;      /* Layout background */
   --bg-card: #ffffff;           /* Elevated content surfaces */
-  --bg-sidebar: #0f172a;        /* Deep navy/slate sidebar */
-  --bg-sidebar-hover: #1e293b;  /* Hover state */
-  --bg-sidebar-active: #1e1b4b; /* Indigo navy active state */
+  --bg-sidebar: #ffffff;        /* Light white sidebar */
+  --bg-sidebar-hover: #f1f5f9;  /* Hover state */
+  --bg-sidebar-active: #e0e7ff; /* Indigo light active state */
   
   --primary: #6366f1;           /* Indigo/violet brand accent */
   --primary-hover: #4f46e5;
@@ -33,8 +33,8 @@
   --text-secondary: #475569;
   --text-muted: #94a3b8;
   --text-light: #ffffff;
-  --text-sidebar: #94a3b8;
-  --text-sidebar-active: #ffffff;
+  --text-sidebar: #475569;
+  --text-sidebar-active: #6366f1;
 
   --border-color: #e2e8f0;       /* Soft neutral borders */
   

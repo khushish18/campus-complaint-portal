@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Card from '../../components/common/Card/Card';
+import KpiCard from '../../components/common/Card/KpiCard';
 import Badge from '../../components/common/Badge/Badge';
 import Table from '../../components/common/Table/Table';
 import Modal from '../../components/common/Modal/Modal';
@@ -380,8 +381,9 @@ const AdminDashboard = () => {
       
       {/* Welcome Banner */}
       <div className="welcome-banner" style={{
-        backgroundColor: 'var(--bg-card)',
+        background: 'linear-gradient(to right, rgba(99, 102, 241, 0.04) 0%, var(--bg-card) 100%)',
         border: '1px solid var(--border-color)',
+        borderLeft: '4px solid var(--primary)',
         padding: '1.75rem 2rem',
         borderRadius: 'var(--radius-lg)',
         boxShadow: 'var(--shadow-sm)',
@@ -390,8 +392,7 @@ const AdminDashboard = () => {
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '1.25rem',
-        textAlign: 'left',
-        background: 'linear-gradient(to right, rgba(99, 102, 241, 0.04) 0%, var(--bg-card) 100%)'
+        textAlign: 'left'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
           <div style={{ padding: '0.75rem', backgroundColor: 'var(--primary-light)', borderRadius: '50%', color: 'var(--primary)' }}>
@@ -414,60 +415,38 @@ const AdminDashboard = () => {
       {activePath === '/admin' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-            <Card style={{ borderLeft: '4px solid var(--primary)', padding: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
-                <div style={{ padding: '0.6rem', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)' }}>
-                  <Users size={20} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Users</span>
-                  <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                    {stats ? stats.users.total : '...'}
-                  </h4>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Registered user directory</span>
-                </div>
-              </div>
-            </Card>
-            <Card style={{ borderLeft: '4px solid var(--info)', padding: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
-                <div style={{ padding: '0.6rem', backgroundColor: 'var(--info-light)', borderRadius: 'var(--radius-md)', color: 'var(--info)' }}>
-                  <FileText size={20} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Complaints</span>
-                  <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                    {totalComplaintsCount}
-                  </h4>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Cumulative platform tickets</span>
-                </div>
-              </div>
-            </Card>
-            <Card style={{ borderLeft: '4px solid var(--warning)', padding: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
-                <div style={{ padding: '0.6rem', backgroundColor: 'var(--warning-light)', borderRadius: 'var(--radius-md)', color: 'var(--warning)' }}>
-                  <AlertCircle size={20} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending / Overdue</span>
-                  <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                    {stats ? `${stats.complaints.pending} / ${stats.complaints.overdue}` : '...'}
-                  </h4>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Unresolved backlog</span>
-                </div>
-              </div>
-            </Card>
-            <Card style={{ borderLeft: '4px solid var(--success)', padding: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
-                <div style={{ padding: '0.6rem', backgroundColor: 'var(--success-light)', borderRadius: 'var(--radius-md)', color: 'var(--success)' }}>
-                  <Activity size={20} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Dispatch Rate</span>
-                  <h4 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.05rem 0', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>98.6%</h4>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Auto-classification dispatch</span>
-                </div>
-              </div>
-            </Card>
+            <KpiCard
+              icon={Users}
+              title="Total Users"
+              value={stats ? stats.users.total : '...'}
+              description="Registered user directory"
+              color="var(--primary)"
+              colorLight="var(--primary-light)"
+            />
+            <KpiCard
+              icon={FileText}
+              title="Total Complaints"
+              value={totalComplaintsCount}
+              description="Cumulative platform tickets"
+              color="var(--info)"
+              colorLight="var(--info-light)"
+            />
+            <KpiCard
+              icon={AlertCircle}
+              title="Pending / Overdue"
+              value={stats ? `${stats.complaints.pending} / ${stats.complaints.overdue}` : '...'}
+              description="Unresolved backlog"
+              color="var(--warning)"
+              colorLight="var(--warning-light)"
+            />
+            <KpiCard
+              icon={Activity}
+              title="AI Dispatch Rate"
+              value="98.6%"
+              description="Auto-classification dispatch"
+              color="var(--success)"
+              colorLight="var(--success-light)"
+            />
           </div>
 
           {/* Row 1: Charts (Complaints Trend & Category distribution) */}
