@@ -39,6 +39,7 @@ const WardenDashboard = () => {
 
   // Detail Modal State
   const [detailComplaint, setDetailComplaint] = useState(null);
+  const [recommendedStaff, setRecommendedStaff] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [liveTimeRemainingMs, setLiveTimeRemainingMs] = useState(null);
@@ -184,9 +185,11 @@ const WardenDashboard = () => {
     setIsDetailModalOpen(true);
     setLoadingDetail(true);
     setDetailComplaint(null);
+    setRecommendedStaff(null);
     try {
       const response = await api.get(`/complaints/${complaintId}`);
       setDetailComplaint(response.complaint);
+      setRecommendedStaff(response.recommendedStaff);
     } catch (err) {
       toast.error(err.message || 'Failed to load complaint details.');
       setIsDetailModalOpen(false);
@@ -355,11 +358,11 @@ const WardenDashboard = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <Card title="Hostel Blocks Overview">
             {(() => {
-              const getBlockCount = (block) => complaints.filter(c => c.student?.hostelBlock?.toLowerCase().includes(block.toLowerCase()) || c.student?.roomNo?.toLowerCase().startsWith(block.toLowerCase())).length;
-              const countA = getBlockCount('A') || 2;
-              const countB = getBlockCount('B') || 4;
-              const countC = getBlockCount('C') || 1;
-              const countD = getBlockCount('D') || 3;
+              const getBlockCount = (block) => complaints.filter(c => c.student?.roomNo?.toLowerCase().startsWith(block.toLowerCase())).length;
+              const countA = getBlockCount('A');
+              const countB = getBlockCount('B');
+              const countC = getBlockCount('C');
+              const countD = getBlockCount('D');
               const max = Math.max(1, countA, countB, countC, countD);
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', textAlign: 'left' }}>
@@ -791,6 +794,140 @@ const WardenDashboard = () => {
                 {detailComplaint.description}
               </p>
             </div>
+
+            {/* Smart Priority Score Breakdown */}
+            {detailComplaint.priorityScore !== undefined && (
+              <div style={{
+                backgroundColor: 'var(--bg-secondary)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                textAlign: 'left'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                    Intelligent Dispatch Priority Score:
+                  </span>
+                  <span style={{
+                    fontWeight: 800,
+                    fontSize: '1.2rem',
+                    color: detailComplaint.priorityScore >= 75 ? 'var(--danger-text)' : detailComplaint.priorityScore >= 45 ? 'var(--warning-text)' : 'var(--success-text)',
+                    backgroundColor: detailComplaint.priorityScore >= 75 ? 'var(--danger-light)' : detailComplaint.priorityScore >= 45 ? 'var(--warning-light)' : 'var(--success-light)',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: 'var(--radius-sm)'
+                  }}>
+                    {detailComplaint.priorityScore}/100
+                  </span>
+                </div>
+                {detailComplaint.priorityReasons && detailComplaint.priorityReasons.length > 0 && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.25rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', marginTop: '0.2rem' }}>
+                    {detailComplaint.priorityReasons.map((reason, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>+ {reason.signal}</span>
+                        <strong>{reason.value} pts</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Similar Complaints Registry */}
+            {detailComplaint.similarComplaints && detailComplaint.similarComplaints.length > 0 && (
+              <div style={{
+                backgroundColor: 'var(--warning-light)',
+                border: '1px solid var(--warning)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                textAlign: 'left'
+              }}>
+                <h5 style={{ margin: 0, fontWeight: 800, fontSize: '0.85rem', color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
+                  ⚠️ Duplicate / Related Tickets Found
+                </h5>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  {detailComplaint.similarComplaints.map((item, idx) => {
+                    const comp = item.complaintId;
+                    if (!comp) return null;
+                    return (
+                      <div key={idx} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        backgroundColor: 'var(--bg-card)',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        <div>
+                          <strong style={{ color: 'var(--text-primary)', display: 'block' }}>
+                            {comp.title} (Match: {item.similarityScore}%)
+                          </strong>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                            Status: {comp.status} · Urgency: {comp.urgency}
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            handleOpenDetailModal(comp._id);
+                          }}
+                          style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem' }}
+                        >
+                          Inspect
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Recommended Staff Dispatch */}
+            {['pending', 'assigned'].includes(detailComplaint.status) && recommendedStaff && (
+              <div style={{
+                backgroundColor: 'var(--success-light)',
+                border: '1px solid var(--success)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '1rem',
+                marginTop: '0.5rem'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', textAlign: 'left', flex: 1 }}>
+                  <h5 style={{ margin: 0, fontWeight: 800, fontSize: '0.85rem', color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    💡 Smart Dispatch Recommendation
+                  </h5>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Recommended Candidate: <strong style={{ color: 'var(--text-primary)' }}>{recommendedStaff.name}</strong>
+                    <ul style={{ margin: '0.25rem 0 0 0', paddingLeft: '1.2rem', color: 'var(--text-secondary)' }}>
+                      {recommendedStaff.explanation.map((exp, idx) => (
+                        <li key={idx}>{exp}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setStaffId(recommendedStaff.staffId);
+                    setSelectedComplaint(detailComplaint);
+                    setAssignRemarks(`Smart dispatch recommendation based on category expertise match.`);
+                    setIsModalOpen(true);
+                    setIsDetailModalOpen(false);
+                  }}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  Dispatch Candidate
+                </Button>
+              </div>
+            )}
 
             {detailComplaint.attachments && detailComplaint.attachments.length > 0 && (
               <div>

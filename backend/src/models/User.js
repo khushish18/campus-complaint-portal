@@ -47,6 +47,18 @@ const userSchema = new mongoose.Schema(
         'Hostel block is required for students and wardens'
       ]
     },
+    department: {
+      type: String,
+      trim: true,
+      enum: {
+        values: ['plumbing', 'electrical', 'housekeeping', 'internet', 'other'],
+        message: '{VALUE} is not a valid department'
+      },
+      required: [
+        function() { return this.role === 'staff'; },
+        'Department is required for staff members'
+      ]
+    },
     isActive: {
       type: Boolean,
       default: true,

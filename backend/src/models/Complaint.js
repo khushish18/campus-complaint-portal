@@ -110,10 +110,36 @@ const complaintSchema = new mongoose.Schema(
       urgency: { type: String },
       summary: { type: String },
       suggestedDepartment: { type: String },
+      probableRootCause: { type: String },
+      recommendedFirstAction: { type: String },
       confidence: { type: Number },
       provider: { type: String },
       analyzedAt: { type: Date, default: Date.now }
     },
+    hostelBlock: {
+      type: String,
+      trim: true,
+    },
+    priorityScore: {
+      type: Number,
+      default: 0,
+    },
+    priorityReasons: [
+      {
+        signal: { type: String },
+        value: { type: Number },
+      }
+    ],
+    similarComplaints: [
+      {
+        complaintId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Complaint',
+        },
+        similarityScore: { type: Number },
+        relationType: { type: String },
+      }
+    ],
     feedbackRating: {
       type: Number,
       min: 1,
@@ -155,6 +181,8 @@ complaintSchema.index({ assignedTo: 1 });
 complaintSchema.index({ createdAt: -1 });
 complaintSchema.index({ resolvedAt: -1 });
 complaintSchema.index({ closedAt: -1 });
+complaintSchema.index({ priorityScore: -1 });
+complaintSchema.index({ hostelBlock: 1 });
 
 // Virtual field for dynamic SLA information
 complaintSchema.virtual('slaInfo').get(function () {

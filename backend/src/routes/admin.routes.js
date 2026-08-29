@@ -7,7 +7,8 @@ const {
   getHostels,
   getStaffWorkload,
   getTrends,
-  getOverdue
+  getOverdue,
+  getOperationsInsights
 } = require('../controllers/admin.controller');
 
 // Require authentication and ADMIN role for all routes
@@ -18,6 +19,7 @@ router.get('/analytics/categories', getCategories);
 router.get('/analytics/hostels', getHostels);
 router.get('/analytics/staff', getStaffWorkload);
 router.get('/analytics/trends', getTrends);
+router.get('/analytics/insights', getOperationsInsights);
 router.get('/sla/overdue', getOverdue);
 
 module.exports = router;

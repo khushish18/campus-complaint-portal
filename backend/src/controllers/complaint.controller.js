@@ -1,6 +1,11 @@
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const { analyzeComplaint } = require('../services/ai.service');
+const {
+  detectSimilarComplaints,
+  calculatePriorityScore,
+  recommendStaff
+} = require('../services/intelligence.service');
 const { sendEmail } = require('../services/email.service');
 const { notifyUser, broadcast } = require('../config/socket');
 const cloudinary = require('cloudinary').v2;
@@ -40,6 +45,21 @@ exports.createComplaint = async (req, res, next) => {
     // Call AI Service to tag category & urgency (passing attachments context if available)
     const aiResults = await analyzeComplaint(title, description, attachments);
 
+    // Build temp complaint object to calculate similarity and priority score
+    const tempC = {
+      title,
+      description,
+      category: aiResults.category,
+      urgency: aiResults.urgency,
+      hostelBlock: req.user.hostelBlock,
+      student: req.user,
+      createdAt: new Date()
+    };
+
+    // Calculate similarity & priority
+    const similar = await detectSimilarComplaints(tempC);
+    const { score, reasons } = await calculatePriorityScore(tempC);
+
     // Create complaint
     const complaint = await Complaint.create({
       student: req.user._id,
@@ -48,11 +68,17 @@ exports.createComplaint = async (req, res, next) => {
       attachments: attachments || [],
       category: aiResults.category,
       urgency: aiResults.urgency,
+      hostelBlock: req.user.hostelBlock,
+      priorityScore: score,
+      priorityReasons: reasons,
+      similarComplaints: similar,
       aiAnalysis: {
         category: aiResults.category,
         urgency: aiResults.urgency,
         summary: aiResults.summary,
         suggestedDepartment: aiResults.suggestedDepartment,
+        probableRootCause: aiResults.probableRootCause,
+        recommendedFirstAction: aiResults.recommendedFirstAction,
         confidence: aiResults.confidence,
         provider: aiResults.provider
       },
@@ -199,7 +225,8 @@ exports.getComplaintById = async (req, res, next) => {
       .populate('assignedTo', 'name email')
       .populate('history.updatedBy', 'name role')
       .populate('comments.author', 'name role')
-      .populate('reopenedHistory.reopenedBy', 'name role');
+      .populate('reopenedHistory.reopenedBy', 'name role')
+      .populate('similarComplaints.complaintId', 'title status urgency priorityScore');
 
     if (!complaint) {
       res.status(404);
@@ -222,9 +249,16 @@ exports.getComplaintById = async (req, res, next) => {
       return next(new Error('Not authorized to view complaints outside your hostel wing'));
     }
 
+    // Calculate smart staff recommendation for Wardens and Admins
+    let recommendedStaff = null;
+    if (['warden', 'admin'].includes(req.user.role)) {
+      recommendedStaff = await recommendStaff(complaint);
+    }
+
     res.json({
       success: true,
       complaint,
+      recommendedStaff
     });
   } catch (error) {
     next(error);

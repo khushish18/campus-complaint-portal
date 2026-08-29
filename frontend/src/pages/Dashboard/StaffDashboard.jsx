@@ -648,6 +648,67 @@ const StaffDashboard = () => {
               </p>
             </div>
 
+            {/* AI Copilot Troubleshooting Tips */}
+            {detailComplaint.aiAnalysis && (
+              <div style={{
+                backgroundColor: 'var(--primary-light)',
+                border: '1px solid var(--accent-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem 1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <h5 style={{ margin: 0, fontWeight: 800, fontSize: '0.85rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  🔧 AI Dispatch Troubleshooting Tips
+                </h5>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  {detailComplaint.aiAnalysis.probableRootCause && (
+                    <div>
+                      <strong style={{ color: 'var(--text-primary)' }}>Suspected Root Cause:</strong>
+                      <span style={{ marginLeft: '0.35rem' }}>{detailComplaint.aiAnalysis.probableRootCause}</span>
+                    </div>
+                  )}
+                  {detailComplaint.aiAnalysis.recommendedFirstAction && (
+                    <div>
+                      <strong style={{ color: 'var(--text-primary)' }}>Recommended First Action:</strong>
+                      <span style={{ marginLeft: '0.35rem' }}>{detailComplaint.aiAnalysis.recommendedFirstAction}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Similar Resolved Jobs (Reference Notes) */}
+            {detailComplaint.similarComplaints && detailComplaint.similarComplaints.filter(item => item.complaintId && ['resolved', 'closed'].includes(item.complaintId.status)).length > 0 && (
+              <div style={{
+                backgroundColor: 'var(--success-light)',
+                border: '1px solid var(--success)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                textAlign: 'left'
+              }}>
+                <h5 style={{ margin: 0, fontWeight: 800, fontSize: '0.85rem', color: 'var(--success-text)', marginBottom: '0.4rem' }}>
+                  💡 Similar Resolved Jobs (Reference Notes)
+                </h5>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8rem' }}>
+                  {detailComplaint.similarComplaints
+                    .filter(item => item.complaintId && ['resolved', 'closed'].includes(item.complaintId.status))
+                    .map((item, idx) => {
+                      const comp = item.complaintId;
+                      return (
+                        <div key={idx} style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem', marginBottom: '0.2rem' }}>
+                          <strong style={{ color: 'var(--text-primary)' }}>{comp.title} (Match: {item.similarityScore}%)</strong>
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                            Resolution: {comp.feedbackComment || 'Job completed successfully by dispatch crew.'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
             {detailComplaint.attachments && detailComplaint.attachments.length > 0 && (
               <div>
                 <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>

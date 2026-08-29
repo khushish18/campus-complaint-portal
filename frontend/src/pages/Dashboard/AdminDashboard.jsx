@@ -9,6 +9,7 @@ import Button from '../../components/common/Button/Button';
 import Input from '../../components/common/Input/Input';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import CommentsSection from '../../components/common/Comments/CommentsSection';
 import { DoughnutChart, BarChart, LineChart } from '../../components/common/Charts/Charts';
 import { 
@@ -26,11 +27,13 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { user, socket } = useAuth();
+  const toast = useToast();
   const location = useLocation();
   const activePath = location.pathname;
 
@@ -56,6 +59,7 @@ const AdminDashboard = () => {
   const [overdueComplaints, setOverdueComplaints] = useState([]);
   const [overduePage, setOverduePage] = useState(1);
   const [overdueTotalPages, setOverdueTotalPages] = useState(1);
+  const [operationsInsights, setOperationsInsights] = useState([]);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   // Detail Modal State
@@ -88,13 +92,14 @@ const AdminDashboard = () => {
   const fetchAnalytics = async () => {
     try {
       setLoadingAnalytics(true);
-      const [overviewRes, catRes, hostelRes, staffRes, trendsRes, overdueRes] = await Promise.all([
+      const [overviewRes, catRes, hostelRes, staffRes, trendsRes, overdueRes, insightsRes] = await Promise.all([
         api.get('/admin/analytics/overview'),
         api.get('/admin/analytics/categories'),
         api.get('/admin/analytics/hostels'),
         api.get('/admin/analytics/staff'),
         api.get(`/admin/analytics/trends?range=${trendsRange}`),
-        api.get(`/admin/sla/overdue?page=${overduePage}`)
+        api.get(`/admin/sla/overdue?page=${overduePage}`),
+        api.get('/admin/analytics/insights')
       ]);
 
       if (overviewRes.success) setAnalyticsOverview(overviewRes.data);
@@ -108,6 +113,9 @@ const AdminDashboard = () => {
       if (overdueRes.success) {
         setOverdueComplaints(overdueRes.complaints);
         setOverdueTotalPages(overdueRes.pages);
+      }
+      if (insightsRes.success) {
+        setOperationsInsights(insightsRes.insights || []);
       }
     } catch (err) {
       console.error('Failed to load admin analytics:', err.message);
@@ -289,6 +297,46 @@ const AdminDashboard = () => {
           {row.role === 'student' ? `${row.hostelBlock || 'N/A'} (Rm: ${row.roomNo || 'N/A'})` : row.role === 'warden' ? `${row.hostelBlock || 'N/A'} Wing` : 'Campus-wide'}
         </span>
       )
+    },
+    {
+      header: 'Department Specialty',
+      key: 'department',
+      render: (row) => {
+        if (row.role !== 'staff') return <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>N/A</span>;
+        return (
+          <select
+            value={row.department || 'other'}
+            onChange={async (e) => {
+              try {
+                const newDept = e.target.value;
+                const res = await api.patch(`/users/staff/${row._id}/department`, { department: newDept });
+                if (res.success) {
+                  toast.success(`Updated ${row.name}'s department to ${newDept.toUpperCase()}`);
+                  fetchUsers();
+                }
+              } catch (err) {
+                toast.error(err.message || 'Failed to update department specialty');
+              }
+            }}
+            style={{
+              padding: '0.25rem 0.5rem',
+              fontSize: '0.8rem',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="plumbing">Plumbing</option>
+            <option value="electrical">Electrical</option>
+            <option value="housekeeping">Housekeeping</option>
+            <option value="internet">Internet</option>
+            <option value="other">Other</option>
+          </select>
+        );
+      }
     },
     {
       header: 'Account Status',
@@ -667,6 +715,40 @@ const AdminDashboard = () => {
               </div>
             </Card>
           </div>
+
+          {/* AI Operations Insights Engine */}
+          <Card title="AI Operations Insights Engine" extra={<Sparkles size={18} style={{ color: 'var(--primary)' }} />}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', textAlign: 'left' }}>
+              {operationsInsights.map((insight, idx) => (
+                <div key={idx} style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: insight.type === 'danger' ? 'var(--danger-light)' : insight.type === 'warning' ? 'var(--warning-light)' : 'var(--primary-light)',
+                  borderLeft: `4px solid ${insight.type === 'danger' ? 'var(--danger)' : insight.type === 'warning' ? 'var(--warning)' : 'var(--primary)'}`
+                }}>
+                  <div style={{ marginTop: '0.15rem' }}>
+                    {insight.type === 'danger' ? '🚨' : insight.type === 'warning' ? '⚠️' : '💡'}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: insight.type === 'danger' ? 'var(--danger-text)' : insight.type === 'warning' ? 'var(--warning-text)' : 'var(--text-primary)' }}>
+                      {insight.message}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      <strong>Actionable Recommendation:</strong> {insight.actionableStep}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {operationsInsights.length === 0 && (
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem' }}>
+                  No operations insights generated yet.
+                </div>
+              )}
+            </div>
+          </Card>
 
           {/* Visual Distribution Graphs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>

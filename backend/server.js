@@ -30,6 +30,16 @@ initSocket(server);
 // Listen to port
 server.listen(PORT, () => {
   console.log(`Server executing in mode [${process.env.NODE_ENV || 'development'}] on port: ${PORT}`);
+
+  // Initialize periodic background worker for priority score recalculations (run every 5 minutes)
+  const { updateActivePriorityScores } = require('./src/services/intelligence.service');
+  setInterval(async () => {
+    try {
+      await updateActivePriorityScores();
+    } catch (err) {
+      console.error('Background Priority Worker Error:', err.message);
+    }
+  }, 5 * 60 * 1000);
 });
 
 // Graceful shutdown handler

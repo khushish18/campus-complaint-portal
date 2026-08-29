@@ -79,3 +79,46 @@ exports.getUsers = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Update staff member's department (Admin only)
+// @route   PATCH /api/users/staff/:id/department
+// @access  Private (Admin)
+exports.updateStaffDepartment = async (req, res, next) => {
+  try {
+    const { department } = req.body;
+    const allowedDepartments = ['plumbing', 'electrical', 'housekeeping', 'internet', 'other'];
+
+    if (!department || !allowedDepartments.includes(department)) {
+      res.status(400);
+      return next(new Error(`Invalid department. Choose from: ${allowedDepartments.join(', ')}`));
+    }
+
+    const staff = await User.findById(req.params.id);
+    if (!staff) {
+      res.status(404);
+      return next(new Error('Staff member not found'));
+    }
+
+    if (staff.role !== 'staff') {
+      res.status(400);
+      return next(new Error('User is not a staff member'));
+    }
+
+    staff.department = department;
+    await staff.save();
+
+    res.json({
+      success: true,
+      message: `Staff department updated successfully to ${department}`,
+      staff: {
+        id: staff._id,
+        name: staff.name,
+        email: staff.email,
+        role: staff.role,
+        department: staff.department
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -1,6 +1,7 @@
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const SLA_CONFIG = require('../config/slaConfig');
+const { generateOperationsInsights } = require('../services/intelligence.service');
 
 // Helper to convert MS to Hours
 const msToHours = (ms) => {
@@ -546,6 +547,21 @@ exports.getOverdue = async (req, res, next) => {
       page,
       pages: Math.ceil(total / limit),
       complaints
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get AI/Operations insights (Admin only)
+// @route   GET /api/admin/analytics/insights
+// @access  Private (Admin)
+exports.getOperationsInsights = async (req, res, next) => {
+  try {
+    const insights = await generateOperationsInsights();
+    res.json({
+      success: true,
+      insights
     });
   } catch (error) {
     next(error);

@@ -101,6 +101,8 @@ Response JSON format:
   "urgency": "low" | "medium" | "high",
   "summary": "A 1-sentence summary of the issue",
   "suggestedDepartment": "Name of the maintenance crew (e.g. Electrical Services, Plumbing Squad, Cleaning Crew, IT Support, General Caretaker)",
+  "probableRootCause": "A brief explanation of what probably caused the issue based on description",
+  "recommendedFirstAction": "A brief, actionable first instruction for the resolving staff member",
   "confidence": 0.95
 }
 Return ONLY the raw JSON object. Do not include markdown wraps.`;
@@ -151,6 +153,8 @@ Attachments: ${attachmentsInfo}`;
           urgency: result.urgency,
           summary: result.summary || title,
           suggestedDepartment: result.suggestedDepartment || 'General Caretaker',
+          probableRootCause: result.probableRootCause || 'Undetermined mechanical/utility issue',
+          recommendedFirstAction: result.recommendedFirstAction || 'Inspect site for details',
           confidence: result.confidence || 0.9,
           provider: 'openai'
         };
@@ -204,6 +208,8 @@ Attachments: ${attachmentsInfo}`;
           urgency: result.urgency,
           summary: result.summary || title,
           suggestedDepartment: result.suggestedDepartment || 'General Caretaker',
+          probableRootCause: result.probableRootCause || 'Undetermined mechanical/utility issue',
+          recommendedFirstAction: result.recommendedFirstAction || 'Inspect site for details',
           confidence: result.confidence || 0.9,
           provider: 'claude'
         };
@@ -220,7 +226,9 @@ Attachments: ${attachmentsInfo}`;
   return {
     ...classifyLocally(title, description),
     summary: title,
-    suggestedDepartment: 'General Caretaker'
+    suggestedDepartment: 'General Caretaker',
+    probableRootCause: 'Undetermined mechanical/utility issue (local fallback)',
+    recommendedFirstAction: 'Inspect site for details and perform diagnostics.'
   };
 };
 

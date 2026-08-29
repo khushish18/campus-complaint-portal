@@ -794,6 +794,66 @@ const StudentDashboard = () => {
               </p>
             </div>
 
+            {/* Similar Complaint Alert */}
+            {selectedComplaint.similarComplaints && selectedComplaint.similarComplaints.length > 0 && (
+              <div style={{
+                backgroundColor: 'var(--warning-light)',
+                border: '1px solid var(--warning)',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.75rem 1.25rem',
+                color: 'var(--warning-text)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.25rem',
+                fontSize: '0.825rem'
+              }}>
+                <span style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  ⚠️ Similar Issue Reported Nearby ({selectedComplaint.similarComplaints[0].similarityScore}% Match)
+                </span>
+                <span>
+                  Another resident in your hostel block recently raised a similar concern. Our dispatch teams are coordinating maintenance efforts to resolve this efficiently.
+                </span>
+              </div>
+            )}
+
+            {/* AI Copilot Operations Analysis */}
+            {selectedComplaint.aiAnalysis && (
+              <div style={{
+                backgroundColor: 'var(--primary-light)',
+                border: '1px solid var(--accent-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem 1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.65rem'
+              }}>
+                <h5 style={{ margin: 0, fontWeight: 800, fontSize: '0.875rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Sparkles size={16} />
+                  AI Copilot Operations Analysis
+                </h5>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                  {selectedComplaint.aiAnalysis.summary && (
+                    <div>
+                      <strong style={{ color: 'var(--text-primary)' }}>1-Sentence Summary:</strong>
+                      <span style={{ marginLeft: '0.35rem' }}>{selectedComplaint.aiAnalysis.summary}</span>
+                    </div>
+                  )}
+                  {selectedComplaint.aiAnalysis.probableRootCause && (
+                    <div>
+                      <strong style={{ color: 'var(--text-primary)' }}>Probable Root Cause:</strong>
+                      <span style={{ marginLeft: '0.35rem' }}>{selectedComplaint.aiAnalysis.probableRootCause}</span>
+                    </div>
+                  )}
+                  {selectedComplaint.aiAnalysis.recommendedFirstAction && (
+                    <div>
+                      <strong style={{ color: 'var(--text-primary)' }}>Recommended First Action:</strong>
+                      <span style={{ marginLeft: '0.35rem' }}>{selectedComplaint.aiAnalysis.recommendedFirstAction}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {selectedComplaint.attachments && selectedComplaint.attachments.length > 0 && (
               <div>
                 <h5 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
