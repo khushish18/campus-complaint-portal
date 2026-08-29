@@ -1,6 +1,10 @@
 const User = require('../models/User');
 
 const seedUsers = async () => {
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Seeder: Seeding demo accounts is strictly blocked in production mode.');
+    return;
+  }
   try {
     const demoAccounts = [
       {

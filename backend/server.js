@@ -10,8 +10,12 @@ if (process.env.NODE_ENV === 'production') {
     console.error('Fatal Error: JWT_SECRET environment variable is not defined.');
     process.exit(1);
   }
-  if (process.env.JWT_SECRET === 'your_jwt_secret_key_here_super_secret') {
-    console.error('Fatal Error: JWT_SECRET cannot be configured with the default placeholder in production.');
+  if (process.env.JWT_SECRET === 'your_jwt_secret_key_here_super_secret' || process.env.JWT_SECRET.length < 32) {
+    console.error('Fatal Error: JWT_SECRET is too weak or unsafe for production.');
+    process.exit(1);
+  }
+  if (!process.env.MONGODB_URI && !process.env.MONGO_URI) {
+    console.error('Fatal Error: MONGODB_URI environment variable is not defined.');
     process.exit(1);
   }
 }
