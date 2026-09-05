@@ -51,8 +51,12 @@ const Landing = () => {
       return toast.error('Please enter name, email, and password.');
     }
 
-    if (!regHostelBlock || !regRoomNo) {
-      return toast.error('Please select a hostel block and enter your room number.');
+    if (!regHostelBlock || !regHostelBlock.trim()) {
+      return toast.error('Please select your hostel block.');
+    }
+
+    if (!regRoomNo || !regRoomNo.trim()) {
+      return toast.error('Please enter your room number.');
     }
 
     if (regPassword.length < 6) {
@@ -61,7 +65,7 @@ const Landing = () => {
 
     setLoading(true);
     try {
-      const loggedUser = await register(regName, regEmail, regPassword, regRoomNo, regHostelBlock);
+      const loggedUser = await register(regName, regEmail, regPassword, regRoomNo.trim(), regHostelBlock.trim());
       toast.success(`Registration successful! Welcome, ${loggedUser.name}`);
       redirectUser(loggedUser.role);
     } catch (error) {

@@ -15,13 +15,17 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log the error details to console for debugging in dev environment
-    console.error('ErrorBoundary caught an uncaught exception:', error, errorInfo);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('ErrorBoundary caught an uncaught rendering exception:', error, errorInfo);
+    }
   }
 
   handleReload = () => {
-    // Hard refresh application state
     window.location.reload();
+  };
+
+  handleGoHome = () => {
+    window.location.href = '/';
   };
 
   render() {
@@ -32,13 +36,18 @@ class ErrorBoundary extends Component {
             <div className="error-boundary-icon">
               <ShieldAlert size={40} />
             </div>
-            <h1 className="error-boundary-title">Application Crash</h1>
+            <h1 className="error-boundary-title">Something went wrong</h1>
             <p className="error-boundary-text">
-              An unexpected client-side exception occurred while rendering this view. Please try reloading the portal to restore service.
+              An unexpected application error occurred while rendering this component. Please try reloading the page or returning to the home screen.
             </p>
-            <Button variant="primary" onClick={this.handleReload} style={{ width: '100%' }}>
-              Reload Application
-            </Button>
+            <div style={{ display: 'flex', gap: '0.75rem', width: '100%' }}>
+              <Button variant="primary" onClick={this.handleReload} style={{ flex: 1 }}>
+                Reload Page
+              </Button>
+              <Button variant="outline" onClick={this.handleGoHome} style={{ flex: 1 }}>
+                Go to Home
+              </Button>
+            </div>
           </div>
         </div>
       );

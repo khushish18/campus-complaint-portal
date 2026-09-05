@@ -41,9 +41,15 @@ export const AuthProvider = ({ children }) => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   // Socket connection lifecycle
   useEffect(() => {
-    if (!user) {
+    const userId = user?.id || user?._id;
+    if (!userId) {
       setSocket(null);
       return;
     }
@@ -51,18 +57,28 @@ export const AuthProvider = ({ children }) => {
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
     const socketInstance = io(socketUrl);
 
-    socketInstance.on('connect', () => {
-      console.log('Socket connected successfully in AuthContext');
-      socketInstance.emit('register', user.id || user._id);
-    });
+    const onConnect = () => {
+      const currentUserId = userRef.current?.id || userRef.current?._id;
+      if (currentUserId) {
+        console.log(`Socket connected/reconnected in AuthContext for user: ${currentUserId}`);
+        socketInstance.emit('register', currentUserId);
+      }
+    };
+
+    socketInstance.on('connect', onConnect);
+
+    if (socketInstance.connected) {
+      onConnect();
+    }
 
     setSocket(socketInstance);
 
     return () => {
+      socketInstance.off('connect', onConnect);
       socketInstance.disconnect();
       setSocket(null);
     };
-  }, [user]);
+  }, [user?.id, user?._id]);
 
   // Global socket notification listeners
   useEffect(() => {

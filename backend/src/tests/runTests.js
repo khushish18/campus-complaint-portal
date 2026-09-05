@@ -472,8 +472,10 @@ const run = async () => {
 };
 
 const shutdown = (code) => {
-  if (code === 0) {
-    process.kill(process.pid, 'SIGKILL');
+  if (server) {
+    server.close(() => {
+      process.exit(code);
+    });
   } else {
     process.exit(code);
   }

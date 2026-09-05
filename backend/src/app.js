@@ -40,7 +40,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date() });
+  const mongoose = require('mongoose');
+  const dbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+  res.json({
+    status: dbConnected ? 'healthy' : 'degraded',
+    database: dbConnected ? 'connected' : 'disconnected',
+    timestamp: new Date()
+  });
 });
 
 // Mount routes

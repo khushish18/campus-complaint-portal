@@ -28,13 +28,16 @@ exports.register = async (req, res, next) => {
       return next(new Error('Please provide name, email, and password'));
     }
 
-    if (!hostelBlock || !roomNo) {
+    const trimmedHostel = hostelBlock && typeof hostelBlock === 'string' ? hostelBlock.trim() : '';
+    const trimmedRoom = roomNo && typeof roomNo === 'string' ? roomNo.trim() : '';
+
+    if (!trimmedHostel || !trimmedRoom) {
       res.status(400);
       return next(new Error('Hostel block and room number are required for student registration'));
     }
 
     const validBlocks = ['Tagore Hall', 'Radhakrishnan Hall', 'Nehru Hall', 'Patel Hall'];
-    if (!validBlocks.includes(hostelBlock)) {
+    if (!validBlocks.includes(trimmedHostel)) {
       res.status(400);
       return next(new Error(`Invalid hostel block. Must be one of: ${validBlocks.join(', ')}`));
     }
@@ -52,8 +55,8 @@ exports.register = async (req, res, next) => {
       email,
       passwordHash: password, // pre-save hook handles hashing
       role: 'student',
-      roomNo,
-      hostelBlock,
+      roomNo: trimmedRoom,
+      hostelBlock: trimmedHostel,
       isActive: true,
     });
 
