@@ -8,6 +8,7 @@ const {
 } = require('../services/intelligence.service');
 const { sendEmail } = require('../services/email.service');
 const { notifyUser, broadcast } = require('../config/socket');
+const { createNotification } = require('../services/notification.service');
 const cloudinary = require('cloudinary').v2;
 
 // Cloudinary configuration helper
@@ -92,19 +93,27 @@ exports.createComplaint = async (req, res, next) => {
       ],
     });
 
-    // Notify block-specific wardens via Socket.io
+    // Notify block-specific wardens via Socket.io & DB Persistence
     try {
       const wardens = await User.find({ role: 'warden', hostelBlock: req.user.hostelBlock }).select('_id');
-      wardens.forEach(warden => {
-        notifyUser(warden._id, 'newComplaint', {
+      for (const warden of wardens) {
+        await createNotification({
+          recipient: warden._id,
+          type: 'complaint_created',
+          title: 'New Hostel Complaint',
+          message: `A new complaint "${complaint.title}" has been raised in your hostel block.`,
           complaintId: complaint._id,
-          title: complaint.title,
-          category: complaint.category,
-          urgency: complaint.urgency,
+          socketEvent: 'newComplaint',
+          socketData: {
+            complaintId: complaint._id,
+            title: complaint.title,
+            category: complaint.category,
+            urgency: complaint.urgency,
+          }
         });
-      });
+      }
     } catch (err) {
-      console.error('Socket notification error in createComplaint:', err.message);
+      console.error('Notification error in createComplaint:', err.message);
     }
 
     res.status(201).json({
@@ -309,18 +318,34 @@ exports.assignComplaint = async (req, res, next) => {
 
     await complaint.save();
 
-    // Notify staff member (Socket.io)
-    notifyUser(staffId, 'complaintAssigned', {
+    // Notify staff member
+    await createNotification({
+      recipient: staffId,
+      type: 'complaint_assigned',
+      title: 'Work Order Assigned',
+      message: `A new complaint "${complaint.title}" has been assigned to you.`,
       complaintId: complaint._id,
-      title: complaint.title,
+      socketEvent: 'complaintAssigned',
+      socketData: {
+        complaintId: complaint._id,
+        title: complaint.title,
+      }
     });
 
     // Notify student about the status update
-    notifyUser(complaint.student, 'statusUpdate', {
+    await createNotification({
+      recipient: complaint.student,
+      type: 'status_changed',
+      title: 'Complaint Assigned',
+      message: `Your complaint "${complaint.title}" has been assigned to a maintenance crew.`,
       complaintId: complaint._id,
-      title: complaint.title,
-      status: 'assigned',
-      remarks: remarks || `Assigned to staff: ${staff.name}`,
+      socketEvent: 'statusUpdate',
+      socketData: {
+        complaintId: complaint._id,
+        title: complaint.title,
+        status: 'assigned',
+        remarks: remarks || `Assigned to staff: ${staff.name}`,
+      }
     });
 
     await sendEmail({
@@ -389,28 +414,48 @@ exports.updateComplaintStatus = async (req, res, next) => {
 
     await complaint.save();
 
-    // Notify student (Socket.io + Email)
-    notifyUser(complaint.student._id, 'statusUpdate', {
+    // Notify student
+    let studentMsg = `Your complaint "${complaint.title}" status has been updated to "${status}".`;
+    if (status === 'in-progress') studentMsg = `Work has started on your complaint "${complaint.title}".`;
+    else if (status === 'resolved') studentMsg = `Your complaint "${complaint.title}" has been resolved. Please provide feedback!`;
+
+    await createNotification({
+      recipient: complaint.student._id,
+      type: status === 'resolved' ? 'complaint_resolved' : 'status_changed',
+      title: `Complaint ${status.toUpperCase()}`,
+      message: studentMsg,
       complaintId: complaint._id,
-      title: complaint.title,
-      status,
+      socketEvent: 'statusUpdate',
+      socketData: {
+        complaintId: complaint._id,
+        title: complaint.title,
+        status,
+      }
     });
 
     // Notify block-specific wardens
     try {
       if (complaint.student && complaint.student.hostelBlock) {
         const wardens = await User.find({ role: 'warden', hostelBlock: complaint.student.hostelBlock }).select('_id');
-        wardens.forEach(warden => {
-          notifyUser(warden._id, 'statusUpdate', {
+        for (const warden of wardens) {
+          await createNotification({
+            recipient: warden._id,
+            type: 'status_changed',
+            title: 'Complaint Status Update',
+            message: `Complaint "${complaint.title}" status updated to [${status.toUpperCase()}].`,
             complaintId: complaint._id,
-            title: complaint.title,
-            status,
-            studentName: complaint.student.name,
+            socketEvent: 'statusUpdate',
+            socketData: {
+              complaintId: complaint._id,
+              title: complaint.title,
+              status,
+              studentName: complaint.student.name,
+            }
           });
-        });
+        }
       }
     } catch (err) {
-      console.error('Socket notification error in updateComplaintStatus:', err.message);
+      console.error('Notification error in updateComplaintStatus:', err.message);
     }
 
     await sendEmail({
@@ -470,29 +515,45 @@ exports.submitFeedback = async (req, res, next) => {
 
     await complaint.save();
 
-    // Notify assigned staff and block wardens in real-time
+    // Notify assigned staff and block wardens
     try {
       if (complaint.assignedTo) {
-        notifyUser(complaint.assignedTo, 'complaintClosed', {
+        await createNotification({
+          recipient: complaint.assignedTo,
+          type: 'complaint_resolved',
+          title: 'Complaint Closed',
+          message: `Complaint "${complaint.title}" has been closed by the student (Rating: ${rating}/5).`,
           complaintId: complaint._id,
-          title: complaint.title,
-          rating,
+          socketEvent: 'complaintClosed',
+          socketData: {
+            complaintId: complaint._id,
+            title: complaint.title,
+            rating,
+          }
         });
       }
 
       const studentUser = await User.findById(complaint.student).select('hostelBlock');
       if (studentUser && studentUser.hostelBlock) {
         const wardens = await User.find({ role: 'warden', hostelBlock: studentUser.hostelBlock }).select('_id');
-        wardens.forEach(warden => {
-          notifyUser(warden._id, 'complaintClosed', {
+        for (const warden of wardens) {
+          await createNotification({
+            recipient: warden._id,
+            type: 'complaint_resolved',
+            title: 'Complaint Closed',
+            message: `Complaint "${complaint.title}" has been closed by the student (Rating: ${rating}/5).`,
             complaintId: complaint._id,
-            title: complaint.title,
-            rating,
+            socketEvent: 'complaintClosed',
+            socketData: {
+              complaintId: complaint._id,
+              title: complaint.title,
+              rating,
+            }
           });
-        });
+        }
       }
     } catch (err) {
-      console.error('Socket notification error in submitFeedback:', err.message);
+      console.error('Notification error in submitFeedback:', err.message);
     }
 
     res.json({
@@ -554,30 +615,46 @@ exports.reopenComplaint = async (req, res, next) => {
 
     await complaint.save();
 
-    // Notify assigned staff & wardens via Socket.io
+    // Notify assigned staff & wardens
     try {
       if (complaint.assignedTo) {
-        notifyUser(complaint.assignedTo.toString(), 'statusUpdate', {
+        await createNotification({
+          recipient: complaint.assignedTo.toString(),
+          type: 'complaint_reopened',
+          title: 'Complaint Re-opened',
+          message: `Complaint "${complaint.title}" has been re-opened by the student. Reason: ${reason.trim()}`,
           complaintId: complaint._id,
-          title: complaint.title,
-          status: targetStatus,
-          remarks: `Complaint re-opened: ${reason.trim()}`
+          socketEvent: 'statusUpdate',
+          socketData: {
+            complaintId: complaint._id,
+            title: complaint.title,
+            status: targetStatus,
+            remarks: `Complaint re-opened: ${reason.trim()}`
+          }
         });
       }
 
       if (complaint.student && complaint.student.hostelBlock) {
         const wardens = await User.find({ role: 'warden', hostelBlock: complaint.student.hostelBlock }).select('_id');
-        wardens.forEach(warden => {
-          notifyUser(warden._id, 'statusUpdate', {
+        for (const warden of wardens) {
+          await createNotification({
+            recipient: warden._id,
+            type: 'complaint_reopened',
+            title: 'Complaint Re-opened',
+            message: `Complaint "${complaint.title}" has been re-opened by the student. Reason: ${reason.trim()}`,
             complaintId: complaint._id,
-            title: complaint.title,
-            status: targetStatus,
-            remarks: `Complaint re-opened: ${reason.trim()}`
+            socketEvent: 'statusUpdate',
+            socketData: {
+              complaintId: complaint._id,
+              title: complaint.title,
+              status: targetStatus,
+              remarks: `Complaint re-opened: ${reason.trim()}`
+            }
           });
-        });
+        }
       }
     } catch (err) {
-      console.error('Socket notification error in reopenComplaint:', err.message);
+      console.error('Notification error in reopenComplaint:', err.message);
     }
 
     res.json({
@@ -654,14 +731,23 @@ exports.addComment = async (req, res, next) => {
         wardens.forEach(w => targets.add(w._id.toString()));
       }
 
-      targets.forEach(userId => {
-        notifyUser(userId, 'newComment', {
+      for (const userId of targets) {
+        if (userId === req.user._id.toString()) continue;
+        await createNotification({
+          recipient: userId,
+          type: 'comment_added',
+          title: 'New Discussion Comment',
+          message: `${req.user.name} commented on complaint "${complaint.title}".`,
           complaintId: complaint._id,
-          comment: newComment
+          socketEvent: 'newComment',
+          socketData: {
+            complaintId: complaint._id,
+            comment: newComment
+          }
         });
-      });
+      }
     } catch (err) {
-      console.error('Socket notification error in addComment:', err.message);
+      console.error('Notification error in addComment:', err.message);
     }
 
     res.status(201).json({

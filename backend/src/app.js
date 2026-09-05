@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth.routes');
 const complaintRoutes = require('./routes/complaint.routes');
 const userRoutes = require('./routes/user.routes');
 const adminRoutes = require('./routes/admin.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Handle unknown API routes
 app.use('*', (req, res, next) => {

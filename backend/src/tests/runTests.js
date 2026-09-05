@@ -8,6 +8,7 @@ const assert = require('assert');
 // ----------------------------------------------------
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 const mockUsers = [
   { _id: new mongoose.Types.ObjectId(), name: 'Khushi Sharma', email: 'student@campus.edu', role: 'student', passwordHash: 'password123', isActive: true, roomNo: 'B-204', hostelBlock: 'Tagore Hall' },
@@ -17,6 +18,71 @@ const mockUsers = [
 ];
 
 const mockComplaints = [];
+const mockNotifications = [];
+
+// Mock Notification methods
+Notification.create = async function (obj) {
+  const doc = new Notification(obj);
+  doc._id = obj._id || new mongoose.Types.ObjectId();
+  doc.createdAt = obj.createdAt || new Date();
+  doc.updatedAt = obj.updatedAt || new Date();
+  doc.read = obj.read || false;
+  doc.readAt = obj.readAt || null;
+  doc.save = async function() { return doc; };
+  mockNotifications.push(doc);
+  return doc;
+};
+
+Notification.find = function (query) {
+  let list = mockNotifications;
+  if (query && query.recipient) {
+    list = list.filter(n => n.recipient.toString() === query.recipient.toString());
+  }
+  const chain = {
+    sort: () => chain,
+    skip: () => chain,
+    limit: () => chain,
+    then: (resolve) => resolve(list)
+  };
+  return chain;
+};
+
+Notification.findById = function (id) {
+  const doc = mockNotifications.find(n => n._id.toString() === id.toString());
+  if (doc) {
+    doc.save = async function () { return doc; };
+  }
+  const chain = {
+    then: (resolve) => resolve(doc)
+  };
+  return chain;
+};
+
+Notification.countDocuments = async function (query) {
+  let list = mockNotifications;
+  if (query && query.recipient) {
+    list = list.filter(n => n.recipient.toString() === query.recipient.toString());
+  }
+  if (query && query.read !== undefined) {
+    list = list.filter(n => n.read === query.read);
+  }
+  return list.length;
+};
+
+Notification.updateMany = async function (query, update) {
+  let list = mockNotifications;
+  if (query && query.recipient) {
+    list = list.filter(n => n.recipient.toString() === query.recipient.toString());
+  }
+  if (query && query.read !== undefined) {
+    list = list.filter(n => n.read === query.read);
+  }
+  list.forEach(n => {
+    if (update.read !== undefined) n.read = update.read;
+    if (update.readAt !== undefined) n.readAt = update.readAt;
+  });
+  return { modifiedCount: list.length };
+};
 
 // Mock User methods
 User.findOne = function (query) {
@@ -460,6 +526,59 @@ const run = async () => {
     assert.strictEqual(staffStatsRes.status, 200);
     assert.ok(Array.isArray(staffStatsRes.data.staff));
     console.log('   - Staff workload leaderboard aggregation verified.');
+
+    // 6. Test Phase 9 P2-B Persistent Notifications
+    console.log('🔔 Testing Phase 9 P2-B Persistent Notifications API & RBAC isolation...');
+
+    // Get notifications for student
+    const notifGetRes = await apiRequest('/notifications', {
+      headers: { Authorization: `Bearer ${tokens.student}` }
+    });
+    assert.strictEqual(notifGetRes.status, 200);
+    assert.ok(Array.isArray(notifGetRes.data.notifications));
+    console.log('   - Student notification list retrieved successfully.');
+
+    // Unread count
+    const unreadRes = await apiRequest('/notifications/unread-count', {
+      headers: { Authorization: `Bearer ${tokens.student}` }
+    });
+    assert.strictEqual(unreadRes.status, 200);
+    assert.strictEqual(typeof unreadRes.data.unreadCount, 'number');
+    console.log('   - Unread count calculated correctly.');
+
+    // Create a mock notification for Student
+    const testNotif = await Notification.create({
+      recipient: studentUser._id,
+      type: 'status_changed',
+      title: 'Test Notification',
+      message: 'Your complaint status was updated to assigned.',
+      read: false
+    });
+
+    // Test privacy isolation: Warden cannot mark Student's notification as read
+    const unauthReadRes = await apiRequest(`/notifications/${testNotif._id}/read`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${tokens.warden}` }
+    });
+    assert.strictEqual(unauthReadRes.status, 404);
+    console.log('   - Privacy isolation verified (Warden denied marking Student notification as read).');
+
+    // Authorized student marks own notification as read
+    const authReadRes = await apiRequest(`/notifications/${testNotif._id}/read`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${tokens.student}` }
+    });
+    assert.strictEqual(authReadRes.status, 200);
+    assert.strictEqual(authReadRes.data.notification.read, true);
+    console.log('   - Student successfully marked own notification as read.');
+
+    // Test mark all read
+    const markAllRes = await apiRequest('/notifications/read-all', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${tokens.student}` }
+    });
+    assert.strictEqual(markAllRes.status, 200);
+    console.log('   - Mark all notifications read executed successfully.');
 
     console.log('🧹 Cleanup: Test complaint deleted.');
     console.log('🎉 ALL OFFLINE INTEGRATION TESTS PASSED SUCCESSFULLY!');

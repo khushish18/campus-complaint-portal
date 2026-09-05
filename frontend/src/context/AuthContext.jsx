@@ -21,25 +21,68 @@ export const AuthProvider = ({ children }) => {
   const toast = useToast();
   const notifiedEvents = useRef(new Set());
 
-  const appendNotification = (message, eventName, complaintId) => {
-    const newNotif = {
-      id: Date.now() + Math.random().toString(36).substr(2, 9),
-      message,
-      timestamp: new Date(),
-      read: false,
-      complaintId,
-      type: eventName
-    };
-    setNotifications(prev => [newNotif, ...prev]);
+  const appendNotification = (message, eventName, complaintId, notifId = null) => {
+    const id = notifId || Date.now() + Math.random().toString(36).substr(2, 9);
+    setNotifications(prev => {
+      if (prev.some(n => n.id === id)) return prev;
+      const newNotif = {
+        id,
+        message,
+        timestamp: new Date(),
+        read: false,
+        complaintId,
+        type: eventName
+      };
+      return [newNotif, ...prev];
+    });
   };
 
-  const markAsRead = (id) => {
+  const markAsRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    try {
+      await api.patch(`/notifications/${id}/read`);
+    } catch (err) {
+      console.error('Error marking notification read:', err.message);
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      await api.patch('/notifications/read-all');
+    } catch (err) {
+      console.error('Error marking all notifications read:', err.message);
+    }
   };
+
+  // Restore persistent notification history when user logs in or restores session
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      const userId = user?.id || user?._id;
+      if (!userId) {
+        setNotifications([]);
+        return;
+      }
+      try {
+        const response = await api.get('/notifications');
+        if (response && response.notifications) {
+          const formatted = response.notifications.map(n => ({
+            id: n.id,
+            message: n.message,
+            timestamp: n.createdAt ? new Date(n.createdAt) : new Date(),
+            read: n.read,
+            complaintId: n.complaintId,
+            type: n.type
+          }));
+          setNotifications(formatted);
+        }
+      } catch (err) {
+        console.error('Failed to load notification history:', err.message);
+      }
+    };
+
+    fetchNotifications();
+  }, [user?.id, user?._id]);
 
   const userRef = useRef(user);
   useEffect(() => {
@@ -91,7 +134,7 @@ export const AuthProvider = ({ children }) => {
       notifiedEvents.current.add(key);
       const msg = `A new complaint "${data.title}" has been raised in your hostel block.`;
       toast.info(msg);
-      appendNotification(msg, 'newComplaint', data.complaintId);
+      appendNotification(msg, 'newComplaint', data.complaintId, data.notificationId || data.id);
     };
 
     const handleComplaintAssigned = (data) => {
@@ -101,7 +144,7 @@ export const AuthProvider = ({ children }) => {
       notifiedEvents.current.add(key);
       const msg = `A new complaint "${data.title}" has been assigned to you.`;
       toast.info(msg);
-      appendNotification(msg, 'complaintAssigned', data.complaintId);
+      appendNotification(msg, 'complaintAssigned', data.complaintId, data.notificationId || data.id);
     };
 
     const handleStatusUpdate = (data) => {
@@ -127,7 +170,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (msg) {
-        appendNotification(msg, 'statusUpdate', data.complaintId);
+        appendNotification(msg, 'statusUpdate', data.complaintId, data.notificationId || data.id);
       }
     };
 
@@ -139,7 +182,7 @@ export const AuthProvider = ({ children }) => {
       if (user.role === 'warden' || user.role === 'staff') {
         const msg = `Complaint "${data.title || 'Work order'}" has been closed by the student (Rating: ${data.rating}/5).`;
         toast.success(msg);
-        appendNotification(msg, 'complaintClosed', data.complaintId);
+        appendNotification(msg, 'complaintClosed', data.complaintId, data.notificationId || data.id);
       }
     };
 
