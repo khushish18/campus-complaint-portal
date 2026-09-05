@@ -580,6 +580,51 @@ const run = async () => {
     assert.strictEqual(markAllRes.status, 200);
     console.log('   - Mark all notifications read executed successfully.');
 
+    // 7. Test Phase 9 P2-C Evidence Upload Reliability
+    console.log('📷 Testing Phase 9 P2-C Evidence Upload Reliability...');
+
+    // Test unauthenticated upload attempt (401)
+    const unauthUpload = await apiRequest('/complaints/upload', {
+      method: 'POST'
+    });
+    assert.strictEqual(unauthUpload.status, 401);
+    console.log('   - Unauthenticated evidence upload denied (401).');
+
+    // Test upload missing file (400)
+    const noFileUpload = await apiRequest('/complaints/upload', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.student}` }
+    });
+    assert.strictEqual(noFileUpload.status, 400);
+    console.log('   - Upload without file rejected with 400 Bad Request.');
+
+    // Test complaint creation with evidence attachments
+    const evidenceComplaint = await Complaint.create({
+      student: studentUser._id,
+      title: 'Water Leakage Evidence Ticket',
+      description: 'Leaking pipe under sink with attached photo evidence',
+      category: 'plumbing',
+      urgency: 'medium',
+      status: 'pending',
+      attachments: [
+        {
+          url: 'https://placeholder.smartcampus.edu/evidence/test_photo.jpg',
+          publicId: 'smartcampus_evidence/test_photo_123',
+          filename: 'pipe_leak.jpg',
+          contentType: 'image/jpeg',
+          sizeBytes: 102400
+        }
+      ]
+    });
+
+    assert.ok(evidenceComplaint._id);
+    assert.strictEqual(evidenceComplaint.attachments.length, 1);
+    assert.strictEqual(evidenceComplaint.attachments[0].filename, 'pipe_leak.jpg');
+    assert.ok(evidenceComplaint.attachments[0].publicId);
+    console.log('   - Complaint with evidence attachments saved & publicId persisted successfully.');
+
+    await Complaint.deleteOne({ _id: evidenceComplaint._id });
+
     console.log('🧹 Cleanup: Test complaint deleted.');
     console.log('🎉 ALL OFFLINE INTEGRATION TESTS PASSED SUCCESSFULLY!');
     

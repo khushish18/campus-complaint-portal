@@ -4,16 +4,19 @@ const path = require('path');
 // Multer storage config (using memory storage for easy Cloudinary integration)
 const storage = multer.memoryStorage();
 
-// File filter to restrict uploads to images and common document types
+// File filter to restrict uploads to images (JPEG, JPG, PNG, WEBP, GIF) and PDF document types
 const fileFilter = (req, file, cb) => {
-  const allowedExtensions = /jpeg|jpg|png|gif|pdf/;
-  const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedExtensions.test(file.mimetype);
+  const allowedExtensions = /^\.(jpeg|jpg|png|webp|gif|pdf)$/i;
+  const allowedMimeTypes = /^(image\/(jpeg|jpg|png|webp|gif)|application\/pdf)$/i;
 
-  if (extname && mimetype) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const validExt = allowedExtensions.test(ext);
+  const validMime = allowedMimeTypes.test(file.mimetype);
+
+  if (validExt && validMime) {
     return cb(null, true);
   } else {
-    cb(new Error('Only images (JPEG, JPG, PNG, GIF) and PDF documents are allowed!'), false);
+    cb(new Error('Only image files (JPEG, JPG, PNG, WEBP, GIF) and PDF documents are allowed!'), false);
   }
 };
 

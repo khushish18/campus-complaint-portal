@@ -102,7 +102,8 @@ const complaintSchema = new mongoose.Schema(
         url: { type: String, required: true },
         filename: { type: String },
         contentType: { type: String },
-        sizeBytes: { type: Number }
+        sizeBytes: { type: Number },
+        publicId: { type: String }
       }
     ],
     aiAnalysis: {
